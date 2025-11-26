@@ -1,13 +1,46 @@
-import { KPIData, Policy, Prospect, AgentTab, CustomerTab, PipelineCase, TrainingModule, Circular, ServiceRequest, Reward, DocumentItem } from './types';
+import { KPIData, Policy, Prospect, AgentTab, CustomerTab, PipelineCase, TrainingModule, Circular, ServiceRequest, Reward, DocumentItem, Claim, Appointment, Task, Notification } from './types';
 import { 
   LayoutDashboard, Users, FileText, GraduationCap, Newspaper, Wrench, Globe, LifeBuoy,
   Home, Shield, Briefcase, TrendingUp, Gift, Lock
 } from 'lucide-react';
 
 export const MOCK_POLICIES: Policy[] = [
-  { id: 'POL-001', name: 'Smart Protect Life', type: 'Life', premium: 2500, status: 'In Force', renewalDate: '2024-11-15', coverageAmount: 500000 },
-  { id: 'POL-002', name: 'MediCare Plus', type: 'Medical', premium: 1200, status: 'In Force', renewalDate: '2024-06-20', coverageAmount: 1000000 },
-  { id: 'POL-003', name: 'Retire Rich Flexi', type: 'Savings', premium: 6000, status: 'In Force', renewalDate: '2024-12-01', coverageAmount: 200000 },
+  { 
+    id: 'POL-001', name: 'Smart Protect Life', type: 'Life', premium: 2500, status: 'In Force', 
+    renewalDate: '2024-11-15', coverageAmount: 500000, cashValue: 15400, riders: ['Critical Illness', 'Accident Waiver']
+  },
+  { 
+    id: 'POL-002', name: 'MediCare Plus', type: 'Medical', premium: 1200, status: 'In Force', 
+    renewalDate: '2024-06-20', coverageAmount: 1000000, riders: ['Hospital Income']
+  },
+  { 
+    id: 'POL-003', name: 'Retire Rich Flexi', type: 'Savings', premium: 6000, status: 'In Force', 
+    renewalDate: '2024-12-01', coverageAmount: 200000, fundValue: 45600 
+  },
+];
+
+export const MOCK_CLAIMS: Claim[] = [
+  { id: 'CLM-2024-001', policyName: 'MediCare Plus', type: 'Medical - Hospitalization', status: 'Approved', submittedDate: '2024-03-10', amount: 4500, documents: ['bill.pdf'] },
+  { id: 'CLM-2024-002', policyName: 'Smart Protect Life', type: 'Accident - Outpatient', status: 'In Review', submittedDate: '2024-05-15', documents: ['xray.jpg', 'receipt.pdf'] }
+];
+
+export const MOCK_APPOINTMENTS: Appointment[] = [
+  { id: 'APT-1', customerName: 'Evan Wright', time: '10:00 AM', duration: '1h', type: 'Closing', channel: 'In-Person', status: 'Confirmed' },
+  { id: 'APT-2', customerName: 'Sarah Lee', time: '02:00 PM', duration: '30m', type: 'Review', channel: 'Video Call', status: 'Confirmed' },
+  { id: 'APT-3', customerName: 'Mike Chen', time: '04:30 PM', duration: '45m', type: 'Service', channel: 'Phone', status: 'Pending' }
+];
+
+export const MOCK_TASKS: Task[] = [
+  { id: 'TSK-1', title: 'Submit Medical Report', relatedTo: 'John Doe', dueDate: 'Today', priority: 'High', type: 'Admin' },
+  { id: 'TSK-2', title: 'Policy Renewal Follow-up', relatedTo: 'Sarah Lee', dueDate: 'Tomorrow', priority: 'Medium', type: 'Renewal' },
+  { id: 'TSK-3', title: 'Birthday Call', relatedTo: 'Mike Chen', dueDate: '2 days', priority: 'Low', type: 'Sales' },
+  { id: 'TSK-4', title: 'Claims Doc Verification', relatedTo: 'Alice Tan', dueDate: 'Today', priority: 'High', type: 'Claim' }
+];
+
+export const MOCK_NOTIFICATIONS: Notification[] = [
+  { id: 'NOT-1', title: 'Policy Issued', message: 'Case CASE-103 for Marcus Hill has been issued.', time: '2h ago', read: false, type: 'Success' },
+  { id: 'NOT-2', title: 'New Circular', message: 'Update on Medical Repricing 2024.', time: '5h ago', read: false, type: 'Info' },
+  { id: 'NOT-3', title: 'Premium Due', message: 'Client Sarah Lee has a premium due in 3 days.', time: '1d ago', read: true, type: 'Alert' }
 ];
 
 export const MOCK_PROSPECTS: Prospect[] = [

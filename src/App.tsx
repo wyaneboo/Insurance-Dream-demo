@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { AgentTab, CustomerTab, UserRole } from './types';
-import { AGENT_MENU, CUSTOMER_MENU } from './constants';
-import { 
-  Bell, Search, LogOut, Menu, UserCircle, Briefcase 
+import { AgentTab, CustomerTab, UserRole, UserProfile } from './types';
+import { AGENT_MENU, CUSTOMER_MENU, MOCK_NOTIFICATIONS } from './constants';
+import {
+  Bell,
+  Search,
+  Menu,
+  UserCircle,
+  Briefcase,
+  LogOut,
+  CheckCircle2,
+  Info,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { AIAssistant } from './components/AIAssistant';
 import { 
@@ -13,6 +22,7 @@ import {
   CustomerDashboard, CustomerPolicies, CustomerServices, 
   CustomerPlanning, CustomerRewards, CustomerVault 
 } from './components/CustomerComponents';
+import { LoginPage } from './components/LoginPage';
 
 // Placeholder components for sections not fully implemented in this demo
 const Placeholder = ({ title }: { title: string }) => (
@@ -24,10 +34,34 @@ const Placeholder = ({ title }: { title: string }) => (
 );
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState<UserRole>(UserRole.AGENT);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [agentTab, setAgentTab] = useState<AgentTab>(AgentTab.DASHBOARD);
   const [customerTab, setCustomerTab] = useState<CustomerTab>(CustomerTab.HOME);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const handleLogin = (selectedRole: UserRole) => {
+    setRole(selectedRole);
+    setUser({
+      id: selectedRole === UserRole.AGENT ? 'AGT-88849' : 'CUST-1002',
+      name: selectedRole === UserRole.AGENT ? 'Alex Agent' : 'Sarah Lee',
+      email: selectedRole === UserRole.AGENT ? 'alex@dreamagency.com' : 'sarah.lee@gmail.com',
+      role: selectedRole,
+      membershipLevel: selectedRole === UserRole.AGENT ? 'Star Club' : 'Gold Customer',
+      notifications: 3,
+    });
+    setIsAuthenticated(true);
+    setAgentTab(AgentTab.DASHBOARD);
+    setCustomerTab(CustomerTab.HOME);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUser(null);
+    setIsSidebarOpen(false);
+  };
 
   // Determine current menu based on role
   const menuItems = role === UserRole.AGENT ? AGENT_MENU : CUSTOMER_MENU;
@@ -38,6 +72,10 @@ const App: React.FC = () => {
     else setCustomerTab(id as CustomerTab);
     setIsSidebarOpen(false); // Close sidebar on mobile on selection
   };
+
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   const renderContent = () => {
     if (role === UserRole.AGENT) {
@@ -103,10 +141,12 @@ const App: React.FC = () => {
               <UserCircle size={20} className="text-slate-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{role === UserRole.AGENT ? 'Alex Agent' : 'Sarah Lee'}</p>
-              <p className={`text-xs truncate ${role === UserRole.AGENT ? 'text-slate-400' : 'text-slate-500'}`}>{role === UserRole.AGENT ? 'Top Performer' : 'Gold Customer'}</p>
+              <p className="text-sm font-medium truncate">{user?.name}</p>
+              <p className={`text-xs truncate ${role === UserRole.AGENT ? 'text-slate-400' : 'text-slate-500'}`}>{user?.membershipLevel}</p>
             </div>
-            <LogOut size={16} className="text-slate-400 cursor-pointer hover:text-red-500" />
+            <button onClick={handleLogout} className="text-slate-400 cursor-pointer hover:text-red-500 transition-colors" title="Logout">
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>
@@ -148,9 +188,41 @@ const App: React.FC = () => {
                </button>
              </div>
 
-             <div className="relative cursor-pointer">
-               <Bell size={20} className="text-slate-600 hover:text-slate-800" />
-               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">3</span>
+             <div className="relative">
+               <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors">
+                 <Bell size={20} />
+                 {user && user.notifications > 0 && (
+                   <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                     {user.notifications}
+                   </span>
+                 )}
+               </button>
+
+               {showNotifications && (
+                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fadeIn origin-top-right">
+                    <div className="p-4 border-b border-slate-50 flex justify-between items-center">
+                      <h4 className="font-bold text-slate-800">Notifications</h4>
+                      <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {MOCK_NOTIFICATIONS.map(notif => (
+                        <div key={notif.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!notif.read ? 'bg-blue-50/50' : ''}`}>
+                           <div className="flex gap-3">
+                              <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                                notif.type === 'Alert' ? 'bg-red-500' : notif.type === 'Success' ? 'bg-emerald-500' : 'bg-blue-500'
+                              }`} />
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
+                                <p className="text-xs text-slate-500 mt-1">{notif.message}</p>
+                                <p className="text-[10px] text-slate-400 mt-2">{notif.time}</p>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="w-full py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors">Mark all as read</button>
+                 </div>
+               )}
              </div>
           </div>
         </header>

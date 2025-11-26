@@ -23,14 +23,27 @@ export enum CustomerTab {
   VAULT = 'Vault'
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatarUrl?: string;
+  membershipLevel?: string;
+  notifications: number;
+}
+
 export interface Policy {
   id: string;
   name: string;
-  type: 'Life' | 'Medical' | 'Savings' | 'Motor';
+  type: 'Life' | 'Medical' | 'Savings' | 'Motor' | 'Investment';
   premium: number;
   status: 'In Force' | 'Lapsed' | 'Pending';
   renewalDate: string;
   coverageAmount: number;
+  cashValue?: number;
+  fundValue?: number;
+  riders?: string[];
 }
 
 export interface Prospect {
@@ -72,6 +85,44 @@ export interface ServiceRequest {
   type: string;
   date: string;
   status: 'Processing' | 'Completed' | 'Action Required';
+}
+
+export interface Claim {
+  id: string;
+  policyName: string;
+  type: string;
+  status: 'Submitted' | 'In Review' | 'Approved' | 'Paid' | 'Declined';
+  submittedDate: string;
+  amount?: number;
+  documents: string[];
+}
+
+export interface Appointment {
+  id: string;
+  customerName: string;
+  time: string;
+  duration: string;
+  type: 'Review' | 'Closing' | 'Service';
+  channel: 'In-Person' | 'Video Call' | 'Phone';
+  status: 'Confirmed' | 'Pending';
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  relatedTo: string;
+  dueDate: string;
+  priority: 'High' | 'Medium' | 'Low';
+  type: 'Renewal' | 'Claim' | 'Sales' | 'Admin';
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  type: 'Alert' | 'Info' | 'Success';
 }
 
 export interface Reward {

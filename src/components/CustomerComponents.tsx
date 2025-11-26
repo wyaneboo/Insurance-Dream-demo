@@ -1,5 +1,5 @@
 import React from 'react';
-import { MOCK_POLICIES, MOCK_REQUESTS, MOCK_REWARDS, MOCK_DOCS } from '../constants';
+import { MOCK_POLICIES, MOCK_REQUESTS, MOCK_REWARDS, MOCK_DOCS, MOCK_CLAIMS } from '../constants';
 import { 
   Shield, AlertCircle, ChevronRight, Download, Activity, DollarSign, 
   MapPin, CreditCard, FilePlus, Phone, Gift, Award, Clock, File, Lock, Target

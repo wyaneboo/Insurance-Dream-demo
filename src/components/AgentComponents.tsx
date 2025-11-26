@@ -1,12 +1,44 @@
 import React from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from 'recharts';
-import { AGENT_KPI, MOCK_PROSPECTS, PORTAL_LINKS, MOCK_PIPELINE, MOCK_TRAINING, MOCK_CIRCULARS } from '../constants';
-import { 
-  ChevronRight, Globe, MoreHorizontal, TrendingUp, AlertCircle, Clock, CheckCircle2, 
-  PlayCircle, FileText, Filter, Search, Calculator, PenTool, Calendar, DollarSign,
-  Phone, MessageCircle, HelpCircle
+import {
+  AGENT_KPI,
+  MOCK_PROSPECTS,
+  PORTAL_LINKS,
+  MOCK_PIPELINE,
+  MOCK_TRAINING,
+  MOCK_CIRCULARS,
+  MOCK_TASKS,
+  MOCK_APPOINTMENTS,
+  MOCK_CLAIMS,
+  MOCK_NOTIFICATIONS,
+} from '../constants';
+import {
+  ChevronRight,
+  Globe,
+  MoreHorizontal,
+  TrendingUp,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  PlayCircle,
+  FileText,
+  Filter,
+  Search,
+  Calculator,
+  PenTool,
+  Calendar,
+  DollarSign,
+  Phone,
+  MessageCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 const COLORS = ['#0ea5e9', '#0284c7', '#0369a1'];
