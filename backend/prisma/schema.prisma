@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String?  @unique
+  phone          String?  @unique
+  role           Role
+  name           String
+  status         String   @default("active")
+  hashedPassword String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deviceTokens   Json?
+  policies       Policy[] @relation("UserPolicies")
+  assignedCases  Policy[] @relation("AgentPolicies")
+  refreshTokens  RefreshToken[]
+  otpCodes       OtpCode[]
+  prospects      Prospect[]
+  prospectNotes  ProspectNote[] @relation("UserProspectNotes")
+  claims         Claim[] @relation("UserClaims")
+  taskReminders  TaskReminder[] @relation("UserTasks")
+  serviceRequests ServiceRequest[] @relation("UserServiceRequests")
+  notifications  Notification[] @relation("UserNotifications")
+  rewardRedemptions RewardRedemption[] @relation("UserRewardRedemptions")
+  vaultDocuments VaultDocument[] @relation("UserVaultDocuments")
+  agentAppointments Appointment[] @relation("AgentAppointments")
+  customerAppointments Appointment[] @relation("CustomerAppointments")
+  auditLogs      AuditLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  target    String
+  code      String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Policy {
+  id             String            @id @default(cuid())
+  owner          User              @relation("UserPolicies", fields: [ownerId], references: [id])
+  ownerId        String
+  agent          User?             @relation("AgentPolicies", fields: [agentId], references: [id])
+  agentId        String?
+  type           String
+  status         String
+  premium        Float
+  coverage       Float
+  riders         Json?
+  cashValue      Float?
+  fundValue      Float?
+  renewalDate    DateTime?
+  exclusions     Json?
+  metadata       Json?
+  documents      PolicyDocument[]
+  claims         Claim[]
+  pipelineCase   PipelineCase?     @relation("PolicyPipelineCase")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PolicyDocument {
+  id           String   @id @default(cuid())
+  policy       Policy   @relation(fields: [policyId], references: [id])
+  policyId     String
+  type         String
+  storageKey   String
+  contentType  String
+  size         Int
+  checksum     String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model Prospect {
+  id           String         @id @default(cuid())
+  agent        User           @relation(fields: [agentId], references: [id])
+  agentId      String
+  name         String
+  contact      Json
+  stage        String
+  score        Int?
+  notes        ProspectNote[]
+  nextActionAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ProspectNote {
+  id         String    @id @default(cuid())
+  prospect   Prospect  @relation(fields: [prospectId], references: [id])
+  prospectId String
+  author     User      @relation("UserProspectNotes", fields: [authorId], references: [id])
+  authorId   String
+  body       String
+  attachments Json?
+  createdAt  DateTime  @default(now())
+}
+
+model PipelineCase {
+  id                String   @id @default(cuid())
+  policy            Policy   @relation("PolicyPipelineCase", fields: [policyId], references: [id])
+  policyId          String   @unique
+  underwritingStatus String
+  pendingReasons    Json?
+  requiredDocs      Json?
+  estimatedIssueDate DateTime?
+  expiry            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Claim {
+  id             String    @id @default(cuid())
+  policy         Policy    @relation(fields: [policyId], references: [id])
+  policyId       String
+  user           User      @relation("UserClaims", fields: [userId], references: [id])
+  userId         String
+  type           String
+  status         String
+  requiredDocs   Json?
+  submittedDocs  Json?
+  payoutAmount   Float?
+  submittedAt    DateTime?
+  adjudicatorNotes Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model TaskReminder {
+  id        String   @id @default(cuid())
+  user      User     @relation("UserTasks", fields: [userId], references: [id])
+  userId    String
+  type      String
+  dueAt     DateTime
+  channel   String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceRequest {
+  id        String   @id @default(cuid())
+  user      User     @relation("UserServiceRequests", fields: [userId], references: [id])
+  userId    String
+  type      String
+  payload   Json
+  status    String   @default("open")
+  slaDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Appointment {
+  id         String   @id @default(cuid())
+  agent      User     @relation("AgentAppointments", fields: [agentId], references: [id])
+  agentId    String
+  customer   User     @relation("CustomerAppointments", fields: [customerId], references: [id])
+  customerId String
+  start      DateTime
+  end        DateTime
+  channel    String
+  status     String
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation("UserNotifications", fields: [userId], references: [id])
+  userId    String
+  type      String
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  delivery  String
+  createdAt DateTime @default(now())
+}
+
+model Training {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  summary     String
+  mediaUrl    String?
+  tags        String[]
+  publishDate DateTime
+  createdAt   DateTime @default(now())
+}
+
+model NewsCircular {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  body        String
+  tags        String[]
+  publishDate DateTime
+  summary     String?
+  aiSummary   String?
+  createdAt   DateTime @default(now())
+}
+
+model Reward {
+  id             String   @id @default(cuid())
+  title          String
+  pointsRequired Int
+  expiry         DateTime?
+  stock          Int?
+  description    String?
+  redemptions    RewardRedemption[]
+}
+
+model RewardRedemption {
+  id        String   @id @default(cuid())
+  reward    Reward   @relation(fields: [rewardId], references: [id])
+  rewardId  String
+  user      User     @relation("UserRewardRedemptions", fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+model VaultDocument {
+  id          String   @id @default(cuid())
+  owner       User     @relation("UserVaultDocuments", fields: [ownerId], references: [id])
+  ownerId     String
+  type        String
+  storageKey  String
+  checksum    String?
+  size        Int
+  contentType String
+  encrypted   Boolean  @default(true)
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  AGENT
+  CUSTOMER
+  ADMIN
+}
