@@ -114,7 +114,7 @@ export const CustomerPolicies: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-800">{policy.name}</h3>
-                <p className="text-sm text-slate-500">{policy.id} • {policy.status}</p>
+                <p className="text-sm text-slate-500">{policy.id} - {policy.status}</p>
                 <p className="text-xs text-slate-400 mt-1">Renewal: {policy.renewalDate}</p>
               </div>
             </div>
@@ -152,14 +152,17 @@ export const CustomerServices: React.FC = () => {
       <div>
         <h2 className="text-xl font-bold text-slate-800 mb-4">Service Requests</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {actions.map((action, idx) => (
-            <button key={idx} className="flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-2xl hover:border-teal-300 hover:shadow-md transition-all group">
-              <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center text-teal-600 mb-3 group-hover:bg-teal-600 group-hover:text-white transition-colors">
-                <action.icon size={24} />
-              </div>
-              <span className="font-medium text-slate-700 text-sm">{action.title}</span>
-            </button>
-          ))}
+          {actions.map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <button key={idx} className="flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-2xl hover:border-teal-300 hover:shadow-md transition-all group">
+                <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center text-teal-600 mb-3 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                  <Icon size={24} />
+                </div>
+                <span className="font-medium text-slate-700 text-sm">{action.title}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -172,7 +175,7 @@ export const CustomerServices: React.FC = () => {
             <div key={req.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
               <div>
                 <p className="font-medium text-slate-800">{req.type}</p>
-                <p className="text-xs text-slate-500">{req.id} • {req.date}</p>
+                <p className="text-xs text-slate-500">{req.id} - {req.date}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                 req.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
@@ -288,7 +291,7 @@ export const CustomerRewards: React.FC = () => {
              </div>
              <div className="flex-1">
                <h4 className="font-bold text-slate-800">{reward.title}</h4>
-               <p className="text-sm text-slate-500">{reward.points} Points • Exp: {reward.expiry}</p>
+               <p className="text-sm text-slate-500">{reward.points} Points - Exp: {reward.expiry}</p>
              </div>
              <button className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800">
                Redeem
@@ -335,7 +338,7 @@ export const CustomerVault: React.FC = () => {
               </div>
               <div>
                 <h4 className="font-medium text-slate-800">{doc.title}</h4>
-                <p className="text-xs text-slate-400">{doc.date} • {doc.type}</p>
+                <p className="text-xs text-slate-400">{doc.date} - {doc.type}</p>
               </div>
             </div>
             <button className="text-slate-300 hover:text-teal-600 transition-colors">
