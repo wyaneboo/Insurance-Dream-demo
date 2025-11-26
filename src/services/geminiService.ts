@@ -1,8 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserRole } from "../types";
 
-// Note: In a real deployment, ensure process.env.API_KEY is available.
-const API_KEY = process.env.API_KEY || ''; 
+const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 class GeminiService {
   private ai: GoogleGenAI | null = null;
