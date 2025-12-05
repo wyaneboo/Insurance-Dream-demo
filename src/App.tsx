@@ -23,6 +23,7 @@ import {
   CustomerPlanning, CustomerRewards, CustomerVault 
 } from './components/CustomerComponents';
 import { LoginPage } from './components/LoginPage';
+import { LoginForm } from './components/LoginForm';
 
 // Placeholder components for sections not fully implemented in this demo
 const Placeholder = ({ title }: { title: string }) => (
@@ -41,17 +42,26 @@ const App: React.FC = () => {
   const [customerTab, setCustomerTab] = useState<CustomerTab>(CustomerTab.HOME);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [authStep, setAuthStep] = useState<'select' | 'credentials'>('select');
 
-  const handleLogin = (selectedRole: UserRole) => {
+  const buildMockProfile = (selectedRole: UserRole): UserProfile => ({
+    id: selectedRole === UserRole.AGENT ? 'AGT-88849' : 'CUST-1002',
+    name: selectedRole === UserRole.AGENT ? 'Alex Agent' : 'Sarah Lee',
+    email: selectedRole === UserRole.AGENT ? 'alex@dreamagency.com' : 'sarah.lee@gmail.com',
+    role: selectedRole,
+    membershipLevel: selectedRole === UserRole.AGENT ? 'Star Club' : 'Gold Customer',
+    notifications: 3,
+  });
+
+  const handlePortalSelect = (selectedRole: UserRole) => {
     setRole(selectedRole);
-    setUser({
-      id: selectedRole === UserRole.AGENT ? 'AGT-88849' : 'CUST-1002',
-      name: selectedRole === UserRole.AGENT ? 'Alex Agent' : 'Sarah Lee',
-      email: selectedRole === UserRole.AGENT ? 'alex@dreamagency.com' : 'sarah.lee@gmail.com',
-      role: selectedRole,
-      membershipLevel: selectedRole === UserRole.AGENT ? 'Star Club' : 'Gold Customer',
-      notifications: 3,
-    });
+    setAuthStep('credentials');
+    setUser(null);
+  };
+
+  const handleLoginSuccess = () => {
+    const profile = buildMockProfile(role);
+    setUser(profile);
     setIsAuthenticated(true);
     setAgentTab(AgentTab.DASHBOARD);
     setCustomerTab(CustomerTab.HOME);
@@ -61,6 +71,8 @@ const App: React.FC = () => {
     setIsAuthenticated(false);
     setUser(null);
     setIsSidebarOpen(false);
+    setShowNotifications(false);
+    setAuthStep('select');
   };
 
   // Determine current menu based on role
@@ -74,7 +86,37 @@ const App: React.FC = () => {
   };
 
   if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (authStep === 'select') {
+      return <LoginPage onLogin={handlePortalSelect} />;
+    }
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full space-y-4">
+          <div className="bg-white shadow-lg border border-slate-200 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 font-bold flex items-center justify-center text-lg">D</div>
+                <div>
+                  <p className="text-sm text-slate-500">Signing in to</p>
+                  <p className="text-base font-semibold text-slate-800">Dream Agency</p>
+                </div>
+              </div>
+              <span className="text-xs px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                {role === UserRole.AGENT ? 'Agent Portal' : 'Customer Portal'}
+              </span>
+            </div>
+            <LoginForm onLogin={handleLoginSuccess} />
+          </div>
+          <button
+            onClick={() => setAuthStep('select')}
+            className="w-full text-sm text-slate-600 hover:text-slate-800 font-medium"
+          >
+            Back to portal selection
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const renderContent = () => {
@@ -172,22 +214,6 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-             {/* Role Switcher (For Demo Purpose) */}
-             <div className="flex bg-slate-100 rounded-lg p-1">
-               <button 
-                 onClick={() => setRole(UserRole.AGENT)} 
-                 className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${role === UserRole.AGENT ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-               >
-                 Agent
-               </button>
-               <button 
-                 onClick={() => setRole(UserRole.CUSTOMER)} 
-                 className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${role === UserRole.CUSTOMER ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-               >
-                 Customer
-               </button>
-             </div>
-
              <div className="relative">
                <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors">
                  <Bell size={20} />

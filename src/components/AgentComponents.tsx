@@ -34,6 +34,8 @@ import {
   Search,
   Calculator,
   PenTool,
+  Video,
+  MapPin,
   Calendar,
   DollarSign,
   Phone,
@@ -128,6 +130,108 @@ export const AgentDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Tasks & Reminders */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-semibold text-slate-800">Tasks</h3>
+        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-bold">{MOCK_TASKS.length}</span>
+      </div>
+      <div className="flex-1 space-y-4 overflow-y-auto max-h-[300px] pr-2">
+        {MOCK_TASKS.map((task, i) => (
+          <div
+            key={i}
+            className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-100"
+          >
+            <div
+              className={`mt-1.5 w-2 h-2 rounded-full ${
+                task.priority === 'High' ? 'bg-red-500' : task.priority === 'Medium' ? 'bg-amber-500' : 'bg-blue-500'
+              }`}
+            />
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-slate-800">{task.title}</h4>
+              <p className="text-xs text-slate-500">
+                {task.relatedTo} •{' '}
+                <span className={`${task.dueDate === 'Today' ? 'text-red-500 font-medium' : ''}`}>{task.dueDate}</span>
+              </p>
+            </div>
+            {task.type === 'Renewal' && <Clock size={16} className="text-slate-300" />}
+            {task.type === 'Claim' && <AlertCircle size={16} className="text-slate-300" />}
+          </div>
+        ))}
+      </div>
+      <button className="w-full mt-4 py-2 text-sm text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors">
+        View All Tasks
+      </button>
+    </div>
+
+      {/* Appointments & Schedule */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+        <h3 className="font-semibold text-slate-800 mb-4">Today's Schedule</h3>
+        <div className="space-y-4">
+          {MOCK_APPOINTMENTS.map((apt) => {
+            const [timeValue, meridiem] = apt.time.split(' ');
+            return (
+              <div
+                key={apt.id}
+                className="flex items-center gap-4 p-4 border border-slate-100 rounded-xl hover:shadow-md transition-shadow bg-slate-50/50"
+              >
+                <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg h-14 w-14 shadow-sm">
+                  <span className="text-xs font-bold text-slate-500">{meridiem}</span>
+                  <span className="text-lg font-bold text-slate-800">{timeValue}</span>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-slate-800">{apt.customerName}</h4>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                    <span className="flex items-center gap-1">
+                      <Clock size={12} /> {apt.duration}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      {apt.channel === 'Video Call' ? <Video size={12} /> : <MapPin size={12} />}
+                      {apt.channel}
+                    </span>
+                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{apt.type}</span>
+                  </div>
+                </div>
+                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-full transition-all">
+                  <MoreHorizontal size={20} />
+                </button>
+              </div>
+            );
+          })}
+          <button className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm font-medium hover:bg-slate-50 hover:border-slate-400 transition-colors">
+            + Add Appointment
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-2xl text-white shadow-lg flex flex-col justify-between">
+        <div>
+          <h3 className="font-bold text-lg mb-1">Quick Actions</h3>
+          <p className="text-slate-400 text-sm mb-6">Common tasks for today</p>
+          <div className="grid grid-cols-2 gap-4">
+            <button className="bg-white/10 hover:bg-white/20 p-4 rounded-xl text-left transition-colors backdrop-blur-sm">
+              <PenTool size={24} className="mb-2 text-blue-400" />
+              <span className="block font-medium text-sm">New Proposal</span>
+            </button>
+            <button className="bg-white/10 hover:bg-white/20 p-4 rounded-xl text-left transition-colors backdrop-blur-sm">
+              <Video size={24} className="mb-2 text-emerald-400" />
+              <span className="block font-medium text-sm">Start Meeting</span>
+            </button>
+            <button className="bg-white/10 hover:bg-white/20 p-4 rounded-xl text-left transition-colors backdrop-blur-sm">
+              <FileText size={24} className="mb-2 text-purple-400" />
+              <span className="block font-medium text-sm">Check Status</span>
+            </button>
+            <button className="bg-white/10 hover:bg-white/20 p-4 rounded-xl text-left transition-colors backdrop-blur-sm">
+              <Search size={24} className="mb-2 text-amber-400" />
+              <span className="block font-medium text-sm">Client Search</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
   );
 };
