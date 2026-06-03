@@ -17,6 +17,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { RewardsModule } from './modules/rewards/rewards.module';
 import { VaultModule } from './modules/vault/vault.module';
 import { ContentModule } from './modules/content/content.module';
+import { ProspectsModule } from './modules/prospects/prospects.module';
+import { PipelineModule } from './modules/pipeline/pipeline.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './modules/shared/roles.guard';
@@ -45,6 +47,8 @@ import { RolesGuard } from './modules/shared/roles.guard';
     RewardsModule,
     VaultModule,
     ContentModule,
+    ProspectsModule,
+    PipelineModule,
   ],
   providers: [
     {

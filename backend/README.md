@@ -26,9 +26,11 @@ npm run dev
 - Auth: `/auth/login`, `/auth/refresh`
 - Users: `/users/me`
 - Policies: `/policies`, `/policies/:id`
+- Prospects: `/prospects`, `/prospects/:id`, `/prospects/:id/notes`
+- Submission pipeline: `/pipeline`, `/pipeline/:id`
 - Tasks: `/tasks`, `/tasks/:id/complete`
 - Files: `/files/presign-upload`, `/files/presign-download` (fake URLs; swap with S3)
-- AI: `/ai/assistant` (echo until AI_API_KEY configured)
+- AI: `/ai/assistant` (LangGraph agent; set `AI_API_KEY` and optional `AI_MODEL`, default `gemma-4-31b-it`)
 
 ## Next steps
 - Hook real S3/MinIO presign logic; add virus scan webhook.

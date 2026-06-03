@@ -20,6 +20,7 @@ model User {
   deviceTokens   Json?
   policies       Policy[] @relation("UserPolicies")
   assignedCases  Policy[] @relation("AgentPolicies")
+  pipelineCases  PipelineCase[] @relation("UserPipelineCases")
   refreshTokens  RefreshToken[]
   otpCodes       OtpCode[]
   prospects      Prospect[]
@@ -118,11 +119,17 @@ model ProspectNote {
 
 model PipelineCase {
   id                String   @id @default(cuid())
-  policy            Policy   @relation("PolicyPipelineCase", fields: [policyId], references: [id])
-  policyId          String   @unique
+  policy            Policy?  @relation("PolicyPipelineCase", fields: [policyId], references: [id])
+  policyId          String?  @unique
+  agent             User?    @relation("UserPipelineCases", fields: [agentId], references: [id])
+  agentId           String?
+  applicantName     String
+  planName          String
   underwritingStatus String
   pendingReasons    Json?
   requiredDocs      Json?
+  remarks           String?
+  submittedAt       DateTime @default(now())
   estimatedIssueDate DateTime?
   expiry            DateTime?
   createdAt         DateTime @default(now())

@@ -16,5 +16,6 @@ export default () => ({
   },
   ai: {
     apiKey: process.env.AI_API_KEY,
+    model: process.env.AI_MODEL || 'gemma-4-31b-it',
   },
 });

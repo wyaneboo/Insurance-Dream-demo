@@ -106,7 +106,7 @@ const App: React.FC = () => {
                 {role === UserRole.AGENT ? 'Agent Portal' : 'Customer Portal'}
               </span>
             </div>
-            <LoginForm onLogin={handleLoginSuccess} />
+            <LoginForm role={role} onLogin={handleLoginSuccess} />
           </div>
           <button
             onClick={() => setAuthStep('select')}

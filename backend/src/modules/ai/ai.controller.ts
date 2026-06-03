@@ -16,6 +16,6 @@ export class AiController {
 
   @Post('assistant')
   chat(@Body() dto: AiDto, @Req() req: any) {
-    return this.aiService.chat(req.user.role, dto.message);
+    return this.aiService.chat(req.user.role, req.user.userId, dto.message);
   }
 }

@@ -49,18 +49,32 @@ export interface Policy {
 export interface Prospect {
   id: string;
   name: string;
-  status: 'New' | 'Contacted' | 'Proposal' | 'Closing';
+  status: string;
+  stage?: string;
   probability: number;
+  score?: number;
   lastContact: string;
+  contact?: Record<string, unknown>;
+  nextActionAt?: string;
+  noteCount?: number;
 }
 
 export interface PipelineCase {
   id: string;
   applicant: string;
+  applicantName?: string;
   plan: string;
-  status: 'Underwriting' | 'Pending Requirement' | 'Submitted';
+  planName?: string;
+  status: string;
+  underwritingStatus?: string;
   submittedDate: string;
-  remarks: string;
+  submittedAt?: string;
+  remarks?: string;
+  pendingReasons?: string[];
+  requiredDocs?: string[];
+  estimatedIssueDate?: string;
+  expiry?: string;
+  policyId?: string;
 }
 
 export interface TrainingModule {

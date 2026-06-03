@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClaimDto, UpdateClaimStatusDto } from './dto/claims.dto';
 
@@ -23,8 +24,8 @@ export class ClaimsService {
         policyId: dto.policyId,
         type: dto.type,
         status: 'Submitted',
-        requiredDocs: dto.requiredDocs || null,
-        submittedDocs: dto.submittedDocs || null,
+        requiredDocs: dto.requiredDocs === undefined ? undefined : (dto.requiredDocs as Prisma.InputJsonValue),
+        submittedDocs: dto.submittedDocs === undefined ? undefined : (dto.submittedDocs as Prisma.InputJsonValue),
         submittedAt: new Date(),
       },
     });
@@ -40,7 +41,9 @@ export class ClaimsService {
       where: { id },
       data: {
         status: dto.status,
-        adjudicatorNotes: dto.notes || claim.adjudicatorNotes,
+        adjudicatorNotes: dto.notes
+          ? ({ note: dto.notes, updatedBy: userId, updatedAt: new Date().toISOString() } as Prisma.InputJsonValue)
+          : undefined,
       },
     });
   }

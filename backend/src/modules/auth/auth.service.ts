@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
@@ -20,7 +21,8 @@ export class AuthService {
       },
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    if (user.hashedPassword && dto.password) {
+    if (user.hashedPassword) {
+      if (!dto.password) throw new UnauthorizedException('Invalid credentials');
       const ok = await bcrypt.compare(dto.password, user.hashedPassword);
       if (!ok) throw new UnauthorizedException('Invalid credentials');
     }
@@ -33,18 +35,19 @@ export class AuthService {
   }
 
   async issueRefreshToken(userId: string) {
+    const refreshTtl = this.config.get<string>('jwt.refreshTtl') ?? '7d';
     const token = await this.jwt.signAsync(
       { sub: userId, type: 'refresh' },
       {
-        secret: this.config.get<string>('jwt.secret'),
-        expiresIn: this.config.get<string>('jwt.refreshTtl'),
+        secret: this.config.get<string>('jwt.secret') ?? 'devsecret',
+        expiresIn: refreshTtl as JwtSignOptions['expiresIn'],
       },
     );
     await this.prisma.refreshToken.create({
       data: {
         userId,
         token,
-        expiresAt: new Date(Date.now() + this.parseTtl(this.config.get<string>('jwt.refreshTtl'))),
+        expiresAt: new Date(Date.now() + this.parseTtl(refreshTtl)),
       },
     });
     return token;
@@ -54,12 +57,14 @@ export class AuthService {
     const stored = await this.prisma.refreshToken.findUnique({ where: { token: refreshToken } });
     if (!stored) throw new UnauthorizedException('Invalid token');
     try {
-      const payload = await this.jwt.verifyAsync(stored.token, {
-        secret: this.config.get<string>('jwt.secret'),
+      const payload = await this.jwt.verifyAsync<{ sub: string }>(stored.token, {
+        secret: this.config.get<string>('jwt.secret') ?? 'devsecret',
       });
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { role: true } });
+      if (!user) throw new UnauthorizedException('Invalid token');
       const accessToken = await this.jwt.signAsync({
         sub: payload.sub,
-        role: payload.role,
+        role: user.role,
       });
       return { accessToken };
     } catch {

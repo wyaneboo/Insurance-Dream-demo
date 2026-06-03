@@ -1,13 +1,34 @@
 import { FormEvent, useState } from "react";
 import { api } from "../api/client";
+import { UserRole } from "../types";
 
 interface Props {
   onLogin?: () => void;
+  role?: UserRole;
 }
 
-export function LoginForm({ onLogin }: Props) {
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+const getDevCredentials = (role?: UserRole) => {
+  if (!import.meta.env.DEV) {
+    return { identifier: "", password: "" };
+  }
+
+  if (role === UserRole.CUSTOMER) {
+    return {
+      identifier: import.meta.env.VITE_DEV_CUSTOMER_LOGIN_IDENTIFIER ?? "",
+      password: import.meta.env.VITE_DEV_CUSTOMER_LOGIN_PASSWORD ?? "",
+    };
+  }
+
+  return {
+    identifier: import.meta.env.VITE_DEV_AGENT_LOGIN_IDENTIFIER ?? "",
+    password: import.meta.env.VITE_DEV_AGENT_LOGIN_PASSWORD ?? "",
+  };
+};
+
+export function LoginForm({ onLogin, role }: Props) {
+  const devCredentials = getDevCredentials(role);
+  const [identifier, setIdentifier] = useState(devCredentials.identifier);
+  const [password, setPassword] = useState(devCredentials.password);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +60,7 @@ export function LoginForm({ onLogin }: Props) {
             onChange={(e) => setIdentifier(e.target.value)}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="user@example.com"
+            autoComplete="username"
             required
           />
         </div>
@@ -50,6 +72,7 @@ export function LoginForm({ onLogin }: Props) {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             placeholder="Your password"
+            autoComplete="current-password"
             required
           />
         </div>

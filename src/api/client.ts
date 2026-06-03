@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL;
 
-type HttpMethod = "GET" | "POST" | "PATCH";
+type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 interface RequestOptions {
   method?: HttpMethod;
@@ -61,6 +61,16 @@ export const api = {
   tasks: () => apiFetch("/tasks"),
   claims: () => apiFetch("/claims"),
   createClaim: (payload: Record<string, unknown>) => apiFetch("/claims", { method: "POST", body: payload }),
+  prospects: () => apiFetch("/prospects"),
+  prospect: (id: string) => apiFetch(`/prospects/${id}`),
+  createProspect: (payload: Record<string, unknown>) => apiFetch("/prospects", { method: "POST", body: payload }),
+  updateProspect: (id: string, payload: Record<string, unknown>) => apiFetch(`/prospects/${id}`, { method: "PATCH", body: payload }),
+  deleteProspect: (id: string) => apiFetch(`/prospects/${id}`, { method: "DELETE" }),
+  pipeline: () => apiFetch("/pipeline"),
+  pipelineCase: (id: string) => apiFetch(`/pipeline/${id}`),
+  createPipelineCase: (payload: Record<string, unknown>) => apiFetch("/pipeline", { method: "POST", body: payload }),
+  updatePipelineCase: (id: string, payload: Record<string, unknown>) => apiFetch(`/pipeline/${id}`, { method: "PATCH", body: payload }),
+  deletePipelineCase: (id: string) => apiFetch(`/pipeline/${id}`, { method: "DELETE" }),
   services: () => apiFetch("/services"),
   createService: (payload: Record<string, unknown>) => apiFetch("/services", { method: "POST", body: payload }),
   notifications: () => apiFetch("/notifications"),
@@ -71,4 +81,5 @@ export const api = {
   news: () => apiFetch("/news"),
   trainings: () => apiFetch("/trainings"),
   appointments: () => apiFetch("/appointments"),
+  aiAssistant: (message: string) => apiFetch<{ reply: string }>("/ai/assistant", { method: "POST", body: { message } }),
 };

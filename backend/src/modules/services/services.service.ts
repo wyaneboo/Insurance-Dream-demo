@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateServiceRequestDto, UpdateServiceRequestDto } from './dto/services.dto';
 
@@ -15,7 +16,7 @@ export class ServicesService {
       data: {
         userId,
         type: dto.type,
-        payload: dto.payload,
+        payload: dto.payload as Prisma.InputJsonValue,
         status: 'open',
       },
     });

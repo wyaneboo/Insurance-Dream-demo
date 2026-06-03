@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -10,9 +10,7 @@ import {
 } from 'recharts';
 import {
   AGENT_KPI,
-  MOCK_PROSPECTS,
   PORTAL_LINKS,
-  MOCK_PIPELINE,
   MOCK_TRAINING,
   MOCK_CIRCULARS,
   MOCK_TASKS,
@@ -20,6 +18,8 @@ import {
   MOCK_CLAIMS,
   MOCK_NOTIFICATIONS,
 } from '../constants';
+import { api } from '../api/client';
+import { PipelineCase, Prospect } from '../types';
 import {
   ChevronRight,
   Globe,
@@ -41,9 +41,77 @@ import {
   Phone,
   MessageCircle,
   HelpCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react';
 
 const COLORS = ['#0ea5e9', '#0284c7', '#0369a1'];
+
+const PROSPECT_STAGES = ['New', 'Contacted', 'Proposal', 'Closing'];
+const PIPELINE_STATUSES = ['Submitted', 'Underwriting', 'Pending Requirement'];
+
+type ProspectFormState = {
+  name: string;
+  stage: string;
+  score: string;
+  email: string;
+  phone: string;
+  nextActionAt: string;
+};
+
+type PipelineFormState = {
+  applicantName: string;
+  planName: string;
+  underwritingStatus: string;
+  submittedAt: string;
+  remarks: string;
+  pendingReasons: string;
+  requiredDocs: string;
+  estimatedIssueDate: string;
+  expiry: string;
+};
+
+const emptyProspectForm: ProspectFormState = {
+  name: '',
+  stage: 'New',
+  score: '20',
+  email: '',
+  phone: '',
+  nextActionAt: '',
+};
+
+const emptyPipelineForm: PipelineFormState = {
+  applicantName: '',
+  planName: '',
+  underwritingStatus: 'Submitted',
+  submittedAt: new Date().toISOString().slice(0, 10),
+  remarks: '',
+  pendingReasons: '',
+  requiredDocs: '',
+  estimatedIssueDate: '',
+  expiry: '',
+};
+
+const dateInputValue = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+};
+
+const displayDate = (value?: string) => {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+};
+
+const splitLines = (value: string) =>
+  value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
 
 export const AgentDashboard: React.FC = () => {
   const chartData = [
@@ -237,14 +305,149 @@ export const AgentDashboard: React.FC = () => {
 };
 
 export const AgentProspects: React.FC = () => {
+  const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Prospect | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [form, setForm] = useState<ProspectFormState>(emptyProspectForm);
+
+  const loadProspects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setProspects((await api.prospects()) as Prospect[]);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load prospects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProspects();
+  }, []);
+
+  const openCreateForm = () => {
+    setEditing(null);
+    setForm(emptyProspectForm);
+    setIsFormOpen(true);
+  };
+
+  const openEditForm = (prospect: Prospect) => {
+    const contact = prospect.contact || {};
+    setEditing(prospect);
+    setForm({
+      name: prospect.name,
+      stage: prospect.stage || prospect.status || 'New',
+      score: String(prospect.score ?? prospect.probability ?? 0),
+      email: typeof contact.email === 'string' ? contact.email : '',
+      phone: typeof contact.phone === 'string' ? contact.phone : '',
+      nextActionAt: dateInputValue(prospect.nextActionAt),
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    const score = Math.max(0, Math.min(100, Number(form.score) || 0));
+    const payload = {
+      name: form.name,
+      stage: form.stage,
+      score,
+      contact: {
+        email: form.email,
+        phone: form.phone,
+      },
+      nextActionAt: form.nextActionAt || undefined,
+    };
+
+    try {
+      if (editing) {
+        await api.updateProspect(editing.id, payload);
+      } else {
+        await api.createProspect(payload);
+      }
+      setIsFormOpen(false);
+      setEditing(null);
+      setForm(emptyProspectForm);
+      await loadProspects();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save prospect');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (prospect: Prospect) => {
+    if (!window.confirm(`Delete prospect ${prospect.name}?`)) return;
+    setError(null);
+    try {
+      await api.deleteProspect(prospect.id);
+      await loadProspects();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete prospect');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-slate-800">Prospect Pipeline</h2>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md shadow-blue-200 transition-all">
-          + Add Prospect
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={loadProspects} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg" title="Refresh prospects">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={openCreateForm}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md shadow-blue-200 transition-all flex items-center gap-2"
+          >
+            <Plus size={16} /> Add Prospect
+          </button>
+        </div>
       </div>
+
+      {isFormOpen && (
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Name</label>
+            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Stage</label>
+            <select value={form.stage} onChange={(event) => setForm({ ...form, stage: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {PROSPECT_STAGES.map((stage) => <option key={stage}>{stage}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Probability</label>
+            <input type="number" min="0" max="100" value={form.score} onChange={(event) => setForm({ ...form, score: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Email</label>
+            <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Phone</label>
+            <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Next Action</label>
+            <input type="date" value={form.nextActionAt} onChange={(event) => setForm({ ...form, nextActionAt: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-6 flex justify-end gap-2">
+            <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+              {saving ? 'Saving...' : editing ? 'Save Changes' : 'Create Prospect'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
 
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <table className="w-full text-left border-collapse">
@@ -254,13 +457,19 @@ export const AgentProspects: React.FC = () => {
               <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Stage</th>
               <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Probability</th>
               <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Contact</th>
-              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Next Action</th>
+              <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {MOCK_PROSPECTS.map((prospect) => (
+            {loading && <tr><td className="p-6 text-sm text-slate-500" colSpan={6}>Loading prospects...</td></tr>}
+            {!loading && prospects.length === 0 && <tr><td className="p-6 text-sm text-slate-500" colSpan={6}>No prospects yet.</td></tr>}
+            {!loading && prospects.map((prospect) => (
               <tr key={prospect.id} className="hover:bg-slate-50 transition-colors group">
-                <td className="p-4 font-medium text-slate-700">{prospect.name}</td>
+                <td className="p-4">
+                  <p className="font-medium text-slate-700">{prospect.name}</p>
+                  <p className="text-xs text-slate-400">{prospect.id}</p>
+                </td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     prospect.status === 'Closing' ? 'bg-green-100 text-green-700' :
@@ -271,11 +480,17 @@ export const AgentProspects: React.FC = () => {
                   </span>
                 </td>
                 <td className="p-4 text-slate-600">{prospect.probability}%</td>
-                <td className="p-4 text-slate-500 text-sm">{prospect.lastContact}</td>
+                <td className="p-4 text-slate-500 text-sm">{displayDate(prospect.lastContact)}</td>
+                <td className="p-4 text-slate-500 text-sm">{displayDate(prospect.nextActionAt)}</td>
                 <td className="p-4">
-                  <button className="text-slate-400 hover:text-blue-600 transition-colors">
-                    <MoreHorizontal size={18} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEditForm(prospect)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit prospect">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(prospect)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete prospect">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -287,16 +502,163 @@ export const AgentProspects: React.FC = () => {
 };
 
 export const AgentPipeline: React.FC = () => {
+  const [cases, setCases] = useState<PipelineCase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<PipelineCase | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [form, setForm] = useState<PipelineFormState>(emptyPipelineForm);
+
+  const loadPipeline = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setCases((await api.pipeline()) as PipelineCase[]);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load pipeline');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPipeline();
+  }, []);
+
+  const openCreateForm = () => {
+    setEditing(null);
+    setForm(emptyPipelineForm);
+    setIsFormOpen(true);
+  };
+
+  const openEditForm = (item: PipelineCase) => {
+    setEditing(item);
+    setForm({
+      applicantName: item.applicantName || item.applicant,
+      planName: item.planName || item.plan,
+      underwritingStatus: item.underwritingStatus || item.status || 'Submitted',
+      submittedAt: dateInputValue(item.submittedAt || item.submittedDate),
+      remarks: item.remarks || '',
+      pendingReasons: Array.isArray(item.pendingReasons) ? item.pendingReasons.join('\n') : '',
+      requiredDocs: Array.isArray(item.requiredDocs) ? item.requiredDocs.join('\n') : '',
+      estimatedIssueDate: dateInputValue(item.estimatedIssueDate),
+      expiry: dateInputValue(item.expiry),
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    const payload = {
+      applicantName: form.applicantName,
+      planName: form.planName,
+      underwritingStatus: form.underwritingStatus,
+      submittedAt: form.submittedAt || undefined,
+      remarks: form.remarks || undefined,
+      pendingReasons: splitLines(form.pendingReasons),
+      requiredDocs: splitLines(form.requiredDocs),
+      estimatedIssueDate: form.estimatedIssueDate || undefined,
+      expiry: form.expiry || undefined,
+    };
+
+    try {
+      if (editing) {
+        await api.updatePipelineCase(editing.id, payload);
+      } else {
+        await api.createPipelineCase(payload);
+      }
+      setIsFormOpen(false);
+      setEditing(null);
+      setForm(emptyPipelineForm);
+      await loadPipeline();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save pipeline case');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (item: PipelineCase) => {
+    if (!window.confirm(`Delete case for ${item.applicant}?`)) return;
+    setError(null);
+    try {
+      await api.deletePipelineCase(item.id);
+      await loadPipeline();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete pipeline case');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-slate-800">Submission Pipeline</h2>
         <div className="flex gap-2">
+          <button onClick={loadPipeline} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg" title="Refresh pipeline">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={openCreateForm} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md shadow-blue-200 transition-all flex items-center gap-2">
+            <Plus size={16} /> Add Case
+          </button>
           <button className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg">
             <Filter size={20} />
           </button>
         </div>
       </div>
+
+      {isFormOpen && (
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Applicant</label>
+            <input value={form.applicantName} onChange={(event) => setForm({ ...form, applicantName: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Plan</label>
+            <input value={form.planName} onChange={(event) => setForm({ ...form, planName: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
+            <select value={form.underwritingStatus} onChange={(event) => setForm({ ...form, underwritingStatus: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {PIPELINE_STATUSES.map((status) => <option key={status}>{status}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Submitted</label>
+            <input type="date" value={form.submittedAt} onChange={(event) => setForm({ ...form, submittedAt: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Required Docs</label>
+            <textarea value={form.requiredDocs} onChange={(event) => setForm({ ...form, requiredDocs: event.target.value })} rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Pending Reasons</label>
+            <textarea value={form.pendingReasons} onChange={(event) => setForm({ ...form, pendingReasons: event.target.value })} rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Remarks</label>
+            <textarea value={form.remarks} onChange={(event) => setForm({ ...form, remarks: event.target.value })} rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Est. Issue</label>
+            <input type="date" value={form.estimatedIssueDate} onChange={(event) => setForm({ ...form, estimatedIssueDate: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Expiry</label>
+            <input type="date" value={form.expiry} onChange={(event) => setForm({ ...form, expiry: event.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-6 flex justify-end gap-2">
+            <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+              {saving ? 'Saving...' : editing ? 'Save Changes' : 'Create Case'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
       
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -308,10 +670,13 @@ export const AgentPipeline: React.FC = () => {
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Submitted</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Remarks</th>
+                <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {MOCK_PIPELINE.map((item) => (
+              {loading && <tr><td className="p-6 text-sm text-slate-500" colSpan={6}>Loading pipeline cases...</td></tr>}
+              {!loading && cases.length === 0 && <tr><td className="p-6 text-sm text-slate-500" colSpan={6}>No submission cases yet.</td></tr>}
+              {!loading && cases.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4">
                     <p className="font-medium text-slate-700">{item.applicant}</p>
@@ -329,8 +694,18 @@ export const AgentPipeline: React.FC = () => {
                       {item.status}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-500 text-sm">{item.submittedDate}</td>
-                  <td className="p-4 text-sm text-slate-500 max-w-xs truncate">{item.remarks}</td>
+                  <td className="p-4 text-slate-500 text-sm">{displayDate(item.submittedDate)}</td>
+                  <td className="p-4 text-sm text-slate-500 max-w-xs truncate">{item.remarks || 'No remarks'}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openEditForm(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit case">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(item)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete case">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
