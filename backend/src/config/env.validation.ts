@@ -14,7 +14,10 @@ export const validateEnv = (config: Record<string, unknown>) => {
     S3_ACCESS_KEY: Joi.string().required(),
     S3_SECRET_KEY: Joi.string().required(),
     AI_API_KEY: Joi.string().allow('').default(''),
+    GOOGLE_API_KEY: Joi.string().allow('').default(''),
+    GEMINI_API_KEY: Joi.string().allow('').default(''),
     AI_MODEL: Joi.string().default('gemma-4-31b-it'),
+    GEMINI_MODEL: Joi.string().allow('').default(''),
   });
 
   const { error, value } = schema.validate(config, { allowUnknown: true });

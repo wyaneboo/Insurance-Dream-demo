@@ -25,7 +25,7 @@ import { RolesGuard } from './modules/shared/roles.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration], validate: validateEnv }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../.env'], load: [configuration], validate: validateEnv }),
     ThrottlerModule.forRoot([
       {
         ttl: 60,

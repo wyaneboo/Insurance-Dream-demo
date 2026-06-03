@@ -1,3 +1,6 @@
+const firstConfigured = (...values: Array<string | undefined>) =>
+  values.find((value) => value && value !== 'your_google_gemini_api_key') || '';
+
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   databaseUrl: process.env.DATABASE_URL,
@@ -15,7 +18,7 @@ export default () => ({
     secretKey: process.env.S3_SECRET_KEY,
   },
   ai: {
-    apiKey: process.env.AI_API_KEY,
-    model: process.env.AI_MODEL || 'gemma-4-31b-it',
+    apiKey: firstConfigured(process.env.AI_API_KEY, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY),
+    model: process.env.AI_MODEL || process.env.GEMINI_MODEL || 'gemma-4-31b-it',
   },
 });
