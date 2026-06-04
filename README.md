@@ -19,21 +19,21 @@ Dream AI Assistant is intended to be a "do-anything" assistant inside the insura
 
 For database work, the assistant uses a LangGraph agent flow:
 
-1. `plan` - route every chatbox message through the agent and choose either a normal assistant reply or one CRM resource: prospects or submission pipeline.
+1. `plan` - understand the user request and choose one resource: prospects or submission pipeline.
 2. `tool` - execute the matching CRUD tool.
 3. `evaluate` - check whether the tool result satisfies the user request.
 4. `repair` - retry once with safer/default fields if the first result is incomplete.
-5. `finalize` - answer from the tool result or return the planned assistant reply.
+5. `finalize` - return a clear response to the user.
 
-The assistant keeps database access scoped and role-aware:
+The assistant is optimized to reduce latency:
 
-- Plans CRM actions through the agent instead of bypassing the model with a local chatbox CRUD parser.
+- Uses a deterministic local parser for common CRUD requests before calling the model.
 - Queries only the database the user asked for.
 - Uses Prisma field projection so reads only fetch requested fields.
-- Can synthesize final answers from tool results for comparisons such as lowest/highest prospect probability.
+- Formats final CRUD responses locally instead of making another model call.
 - Uses one repair retry and a model timeout.
 
-The default model is `gemini-2.5-flash`, configured through the backend AI environment variables.
+The default model is `gemma-4-31b-it`, configured through the backend AI environment variables.
 
 ## Tech Stack
 
@@ -135,10 +135,8 @@ S3_ACCESS_KEY="minio"
 S3_SECRET_KEY="minio123"
 
 AI_API_KEY="your_google_ai_api_key"
-AI_MODEL="gemini-2.5-flash"
+AI_MODEL="gemma-4-31b-it"
 ```
-
-The backend also accepts `GOOGLE_API_KEY` or `GEMINI_API_KEY` if `AI_API_KEY` is not set.
 
 ### 4. Prepare the Database
 
