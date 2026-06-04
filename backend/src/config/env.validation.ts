@@ -16,7 +16,7 @@ export const validateEnv = (config: Record<string, unknown>) => {
     AI_API_KEY: Joi.string().allow('').default(''),
     GOOGLE_API_KEY: Joi.string().allow('').default(''),
     GEMINI_API_KEY: Joi.string().allow('').default(''),
-    AI_MODEL: Joi.string().default('gemma-4-31b-it'),
+    AI_MODEL: Joi.string().default('gemini-2.5-flash'),
     GEMINI_MODEL: Joi.string().allow('').default(''),
   });
 

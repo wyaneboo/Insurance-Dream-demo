@@ -74,6 +74,9 @@ const ACTION_SCHEMA = `{
   }
 }`;
 
+const DEFAULT_AI_MODEL = 'gemini-2.5-flash';
+const MODEL_TIMEOUT_MS = 30000;
+
 @Injectable()
 export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
@@ -101,7 +104,7 @@ export class AiService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    const model = this.config.get<string>('ai.model') || 'gemma-4-31b-it';
+    const model = this.config.get<string>('ai.model') || DEFAULT_AI_MODEL;
     const apiKey = this.config.get<string>('ai.apiKey');
     if (this.isMissingApiKey(apiKey)) {
       this.logger.warn('Dream AI LangGraph agent is loaded, but no Google API key is configured.');
@@ -115,51 +118,59 @@ export class AiService implements OnModuleInit {
       const result = await this.graph.invoke({ role, userId, message, attempts: 0 });
       return { reply: result.reply || 'I could not generate a response.' };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown AI error';
+      const message = this.describeProviderError(error);
       this.logger.error(`Dream AI agent failed: ${message}`);
-      return { reply: `Dream AI could not complete the request: ${message}` };
+      return { reply: `Dream AI could not complete the request right now. ${message}` };
     }
   }
 
   private async plan(state: AgentState): Promise<Partial<AgentState>> {
-    if (state.role !== 'AGENT' && state.role !== 'ADMIN') {
-      return {
-        toolResult: { error: 'CRM CRUD tools are only available to agents/admins.' },
-        attempts: 0,
-      };
-    }
-
-    const deterministic = this.parseDeterministicAction(state.message);
-    if (deterministic) {
-      return { action: deterministic, attempts: 0 };
-    }
-
     const apiKey = this.config.get<string>('ai.apiKey');
     if (this.isMissingApiKey(apiKey)) {
       return {
-        toolResult: { error: 'AI key missing, and the request was not clear enough for the local CRUD parser.' },
+        reply: 'Dream AI is not configured yet. Add a backend AI key before using the assistant.',
         attempts: 0,
       };
     }
 
     const text = await this.generateText([
-      'You are the planning node for Dream Agency CRM database tools.',
+      'You are the planning node for Dream AI Assistant.',
+      'Every user message must go through this agent plan.',
       'Return exactly one compact JSON object and no markdown.',
-      'Pick only one resource. Do not request unrelated databases.',
-      'For read/list requests, include only the fields the user asked for.',
-      'If the user is not asking to organize, list, read, create, update, or delete a prospect or submission pipeline case, return {}.',
-      'Allowed action schema:',
+      'If the user needs CRM database work, return one tool action using the schema below.',
+      'Only AGENT and ADMIN roles may use CRM tools. For any other role, return a normal reply and do not plan a tool.',
+      'For comparisons, rankings, counts, lowest/highest, second-lowest/second-highest, or "which record has" questions, use operation "list" and include the fields needed to answer.',
+      'Use operation "get", "update", or "delete" only when the user gives an exact row id or a specific prospect/applicant name.',
+      'Never put words like "has the lowest", "highest probability", or another comparative phrase in lookupName.',
+      'If no CRM tool is needed, return {"reply":"a concise helpful assistant response"}.',
+      'Allowed CRM action schema:',
       ACTION_SCHEMA,
+      'Example for "which prospect has the lowest probability and which one is second lowest": {"resource":"prospect","operation":"list","fields":["name","probability"]}',
+      `User role: ${state.role}`,
       `User message: ${state.message}`,
     ].join('\n'));
 
-    return { action: this.parseAction(text), attempts: 0 };
+    const action = this.parseAction(text);
+    if (action) return { action, attempts: 0 };
+
+    return {
+      reply: this.parseReply(text) || await this.generateConversationReply(state),
+      attempts: 0,
+    };
   }
 
   private async runTool(state: AgentState): Promise<Partial<AgentState>> {
     const action = state.action;
+    if (state.reply && (!action?.resource || !action.operation)) {
+      return { toolResult: { skipped: true, reason: 'No CRM tool needed.' } };
+    }
+
     if (!action?.resource || !action.operation) {
       return { toolResult: state.toolResult || { error: 'I could not identify a CRM CRUD request.' } };
+    }
+
+    if (state.role !== 'AGENT' && state.role !== 'ADMIN') {
+      return { toolResult: { error: 'CRM CRUD tools are only available to agents/admins.' } };
     }
 
     if (action.resource === 'prospect') {
@@ -172,6 +183,12 @@ export class AiService implements OnModuleInit {
   private evaluate(state: AgentState): Partial<AgentState> {
     const result = state.toolResult as Record<string, unknown> | unknown[] | undefined;
     const action = state.action;
+    if (state.reply && (!action?.resource || !action.operation)) {
+      return {
+        evaluation: { satisfied: true, reason: 'Conversation reply planned without a tool.', needsRepair: false },
+      };
+    }
+
     if (!action?.resource || !action.operation) {
       return {
         evaluation: { satisfied: false, reason: 'No tool action was planned.', needsRepair: false },
@@ -217,8 +234,8 @@ export class AiService implements OnModuleInit {
     };
   }
 
-  private finalize(state: AgentState): Partial<AgentState> {
-    return { reply: this.buildReply(state) };
+  private async finalize(state: AgentState): Promise<Partial<AgentState>> {
+    return { reply: await this.buildReply(state) };
   }
 
   private async runProspectTool(action: AgentAction, userId: string, role: string) {
@@ -400,18 +417,56 @@ export class AiService implements OnModuleInit {
 
   private async generateText(prompt: string): Promise<string> {
     const apiKey = this.config.get<string>('ai.apiKey') ?? '';
-    const model = this.config.get<string>('ai.model') || 'gemma-4-31b-it';
+    const configuredModel = this.config.get<string>('ai.model') || DEFAULT_AI_MODEL;
+    const models = Array.from(new Set([configuredModel, DEFAULT_AI_MODEL]));
     const ai = new GoogleGenAI({ apiKey });
-    const response = await Promise.race([
-      ai.models.generateContent({ model, contents: prompt }),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Google model request timed out after 30 seconds')), 30000);
-      }),
-    ]);
-    return response.text || '';
+
+    let lastError: unknown;
+    for (const model of models) {
+      try {
+        const response = await Promise.race([
+          ai.models.generateContent({ model, contents: prompt }),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error(`Google model request timed out after ${MODEL_TIMEOUT_MS / 1000} seconds`)), MODEL_TIMEOUT_MS);
+          }),
+        ]);
+        return response.text || '';
+      } catch (error) {
+        lastError = error;
+        if (model !== DEFAULT_AI_MODEL) {
+          this.logger.warn(`AI model ${model} failed; retrying with ${DEFAULT_AI_MODEL}. ${this.describeProviderError(error)}`);
+        }
+      }
+    }
+
+    throw new Error(this.describeProviderError(lastError));
   }
 
-  private buildReply(state: AgentState): string {
+  private async buildReply(state: AgentState): Promise<string> {
+    if (state.reply) return state.reply;
+
+    const result = state.toolResult as Record<string, unknown> | unknown[] | undefined;
+    const action = state.action;
+    if (!action?.resource || !action.operation) {
+      return this.readableError(state.toolResult) || 'Tell me which database you want to organize: prospects or submission pipeline.';
+    }
+    if (state.evaluation && !state.evaluation.satisfied && !state.evaluation.needsRepair) {
+      return this.readableError(result) || state.evaluation.reason;
+    }
+    const insight = this.buildStructuredInsight(state);
+    if (insight) return insight;
+
+    try {
+      const final = await this.generateFinalReply(state);
+      if (final.trim()) return final.trim();
+    } catch (error) {
+      this.logger.warn(`AI finalization failed; using local formatter. ${this.describeProviderError(error)}`);
+    }
+
+    return this.buildToolFallbackReply(state);
+  }
+
+  private buildToolFallbackReply(state: AgentState): string {
     const result = state.toolResult as Record<string, unknown> | unknown[] | undefined;
     const action = state.action;
     if (!action?.resource || !action.operation) {
@@ -423,6 +478,77 @@ export class AiService implements OnModuleInit {
     if (Array.isArray(result)) return this.formatList(action.resource, result);
     if (result && typeof result === 'object') return this.formatObject(action, result as Record<string, unknown>);
     return 'Done.';
+  }
+
+  private async generateConversationReply(state: AgentState): Promise<string> {
+    const text = await this.generateText([
+      'You are Dream AI Assistant in an insurance agency CRM.',
+      'Answer normally and concisely.',
+      'If the user asks to change CRM data, say you need a clear CRM request instead of pretending it was done.',
+      `User role: ${state.role}`,
+      `User message: ${state.message}`,
+    ].join('\n'));
+    return text.trim() || 'How can I help?';
+  }
+
+  private async generateFinalReply(state: AgentState): Promise<string> {
+    const text = await this.generateText([
+      'You are Dream AI Assistant finalizing a CRM tool result.',
+      'Answer the user using only the tool result. Do not invent rows or values.',
+      'For probabilities and scores, compare numbers numerically.',
+      'If the tool result is a mutation, confirm only what changed.',
+      'Do not mention internal tool names, JSON, Prisma, LangGraph, or model details.',
+      `User message: ${state.message}`,
+      `Planned action: ${JSON.stringify(state.action)}`,
+      `Tool result: ${JSON.stringify(state.toolResult)}`,
+    ].join('\n'));
+    return text.trim();
+  }
+
+  private buildStructuredInsight(state: AgentState): string | undefined {
+    return this.buildProspectProbabilityInsight(state);
+  }
+
+  private buildProspectProbabilityInsight(state: AgentState): string | undefined {
+    const action = state.action;
+    const rows = state.toolResult;
+    const lower = state.message.toLowerCase();
+    if (action?.resource !== 'prospect' || !Array.isArray(rows)) return undefined;
+    if (!/\b(probability|score)\b/.test(lower) || !/\b(lowest|highest|second|higher|lower)\b/.test(lower)) return undefined;
+
+    const prospects = rows
+      .map((row) => {
+        const record = row as Record<string, unknown>;
+        const probability = this.numericValue(record.probability);
+        return {
+          name: String(record.name || record.id || 'Unnamed prospect'),
+          probability,
+        };
+      })
+      .filter((row): row is { name: string; probability: number } => row.probability !== undefined)
+      .sort((a, b) => a.probability - b.probability);
+
+    if (prospects.length === 0) return 'I could not find any prospect probability values to compare.';
+
+    if (lower.includes('highest')) {
+      const highest = prospects[prospects.length - 1];
+      const secondHighest = prospects[prospects.length - 2];
+      if (secondHighest && /\b(second|lower)\b/.test(lower)) {
+        return `The highest-probability prospect is ${highest.name} at ${this.formatProbability(highest.probability)}. The next lower prospect is ${secondHighest.name} at ${this.formatProbability(secondHighest.probability)}.`;
+      }
+      return `The highest-probability prospect is ${highest.name} at ${this.formatProbability(highest.probability)}.`;
+    }
+
+    if (lower.includes('lowest')) {
+      const lowest = prospects[0];
+      const nextHigher = prospects[1];
+      if (nextHigher && /\b(second|higher|slightly)\b/.test(lower)) {
+        return `The lowest-probability prospect is ${lowest.name} at ${this.formatProbability(lowest.probability)}. The next higher prospect is ${nextHigher.name} at ${this.formatProbability(nextHigher.probability)}.`;
+      }
+      return `The lowest-probability prospect is ${lowest.name} at ${this.formatProbability(lowest.probability)}.`;
+    }
+
+    return undefined;
   }
 
   private formatList(resource: CrudResource, rows: unknown[]): string {
@@ -454,11 +580,13 @@ export class AiService implements OnModuleInit {
   }
 
   private parseAction(text: string): AgentAction | undefined {
-    const raw = text.trim();
-    const jsonText = raw.startsWith('{') ? raw : raw.match(/\{[\s\S]*\}/)?.[0];
-    if (!jsonText) return undefined;
+    const parsed = this.parseJsonObject(text);
+    const candidate = parsed?.action && typeof parsed.action === 'object' && !Array.isArray(parsed.action)
+      ? parsed.action as Record<string, unknown>
+      : parsed;
+    if (!candidate) return undefined;
     try {
-      const parsed = JSON.parse(jsonText) as AgentAction;
+      const parsed = candidate as AgentAction;
       if (!parsed.resource || !parsed.operation) return undefined;
       if (!['prospect', 'pipeline'].includes(parsed.resource)) return undefined;
       if (!['list', 'get', 'create', 'update', 'delete'].includes(parsed.operation)) return undefined;
@@ -471,106 +599,22 @@ export class AiService implements OnModuleInit {
     }
   }
 
-  private parseDeterministicAction(message: string): AgentAction | undefined {
-    const text = message.trim();
-    const lower = text.toLowerCase();
-    const resource = this.detectResource(lower);
-    if (!resource) return undefined;
+  private parseReply(text: string): string | undefined {
+    const parsed = this.parseJsonObject(text);
+    const reply = parsed?.reply;
+    return typeof reply === 'string' && reply.trim() ? reply.trim() : undefined;
+  }
 
-    let operation = this.detectOperation(lower);
-    if (!operation) return undefined;
-
-    const data = this.extractDeterministicData(text, lower, resource, operation);
-    const id = this.extractId(text);
-    const lookupName = this.extractLookupName(text, lower, resource);
-    if (operation === 'list' && lookupName && !/\b(all|list)\b/.test(lower)) {
-      operation = 'get';
+  private parseJsonObject(text: string): Record<string, unknown> | undefined {
+    const raw = text.trim();
+    const jsonText = raw.startsWith('{') ? raw : raw.match(/\{[\s\S]*\}/)?.[0];
+    if (!jsonText) return undefined;
+    try {
+      const parsed = JSON.parse(jsonText) as unknown;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined;
+    } catch {
+      return undefined;
     }
-    const fields = this.normalizeFields(resource, this.detectRequestedFields(lower, resource), operation);
-    return { resource, operation, id, lookupName, fields, data };
-  }
-
-  private detectResource(lower: string): CrudResource | undefined {
-    if (lower.includes('pipeline') || lower.includes('submission') || lower.includes('case')) return 'pipeline';
-    if (lower.includes('prospect')) return 'prospect';
-    return undefined;
-  }
-
-  private detectOperation(lower: string): CrudOperation | undefined {
-    if (/\b(delete|remove)\b/.test(lower)) return 'delete';
-    if (/\b(update|edit|change|set)\b/.test(lower)) return 'update';
-    if (/\b(create|add|new)\b/.test(lower)) return 'create';
-    if (/\b(list|show|all)\b/.test(lower)) return 'list';
-    if (/\b(get|find|open|view|what|which|who)\b/.test(lower)) return 'get';
-    if (this.hasFieldWords(lower)) return 'list';
-    return undefined;
-  }
-
-  private detectRequestedFields(lower: string, resource: CrudResource): string[] {
-    const fields = new Set<string>();
-    if (/\bid\b/.test(lower)) fields.add('id');
-    if (/\bname\b/.test(lower)) fields.add(resource === 'prospect' ? 'name' : 'applicant');
-    if (/\bapplicant\b/.test(lower)) fields.add('applicant');
-    if (/\bplan\b/.test(lower)) fields.add('plan');
-    if (/\bstatus\b|\bstage\b/.test(lower)) fields.add(resource === 'prospect' ? 'stage' : 'status');
-    if (/\bprobability\b|\bscore\b/.test(lower)) fields.add('probability');
-    if (/\bemail\b/.test(lower)) fields.add('email');
-    if (/\bphone\b/.test(lower)) fields.add('phone');
-    if (/\bremark/.test(lower)) fields.add('remarks');
-    if (/\bsubmitted\b|\bsubmission date\b/.test(lower)) fields.add('submittedDate');
-    if (/\brequired doc/.test(lower)) fields.add('requiredDocs');
-    if (/\bpending reason/.test(lower)) fields.add('pendingReasons');
-    return Array.from(fields);
-  }
-
-  private extractDeterministicData(
-    text: string,
-    lower: string,
-    resource: CrudResource,
-    operation: CrudOperation,
-  ): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    const status = /\b(?:stage|status|underwritingStatus)\s+(?:to|as|=)\s+([a-z ]+?)(?:\s+and\b|[.,;]|$)/i.exec(text)?.[1];
-    const score = /\b(?:score|probability)\s+(?:to|as|=)?\s*(\d{1,3})\b/i.exec(text)?.[1];
-    const remarks = /\bremarks?\s+(?:to|as|=)\s+(.+?)(?:[.;]?$)/i.exec(text)?.[1];
-    const lookupName = this.extractLookupName(text, lower, resource);
-
-    if (resource === 'prospect') {
-      if (operation === 'create' && lookupName) data.name = lookupName;
-      if (status) data.stage = this.titleCase(status);
-      if (score) data.score = Number(score);
-    } else {
-      if (operation === 'create' && lookupName) data.applicantName = lookupName;
-      if (status) data.underwritingStatus = this.titleCase(status);
-      if (remarks) data.remarks = remarks.trim();
-    }
-
-    return data;
-  }
-
-  private extractLookupName(text: string, lower: string, resource: CrudResource): string | undefined {
-    const resourceWord = resource === 'prospect'
-      ? 'prospect'
-      : lower.includes('case')
-        ? 'case'
-        : lower.includes('submission')
-          ? 'submission'
-          : 'pipeline';
-    const match = new RegExp(`\\b${resourceWord}\\b\\s+(?:named\\s+|called\\s+|name\\s+)?(.+)$`, 'i').exec(text);
-    if (!match) return undefined;
-    return match[1]
-      .replace(/\bid\s+[a-z0-9_-]+:?/i, '')
-      .replace(/\b(set|change|update|edit|delete|remove|with|to|as)\b.*$/i, '')
-      .replace(/\b(name|probability|score|stage|status|email|phone|plan|applicant|remarks?|submitted|required docs?|pending reasons?)\b.*$/i, '')
-      .replace(/^(and|or)\b\s*/i, '')
-      .replace(/[.,;:]$/, '')
-      .trim() || undefined;
-  }
-
-  private extractId(text: string): string | undefined {
-    const explicit = /\bid\s+([a-z0-9_-]+)/i.exec(text)?.[1];
-    if (explicit) return explicit.replace(/[.,;:]$/, '');
-    return /\b(c[a-z0-9]{12,})\b/i.exec(text)?.[1];
   }
 
   private normalizeFields(resource: CrudResource, fields: unknown, operation: CrudOperation): string[] {
@@ -742,10 +786,6 @@ export class AiService implements OnModuleInit {
     return result && typeof result === 'object' && 'error' in result ? String((result as Record<string, unknown>).error) : undefined;
   }
 
-  private hasFieldWords(lower: string): boolean {
-    return /\b(name|probability|score|stage|status|plan|applicant|remarks|email|phone|required docs|pending reasons)\b/.test(lower);
-  }
-
   private normalizeName(value: string): string {
     return value
       .toLowerCase()
@@ -753,14 +793,6 @@ export class AiService implements OnModuleInit {
       .replace(/\b(the|prospect|pipeline|submission|case)\b/g, '')
       .replace(/[^a-z0-9]+/g, ' ')
       .trim();
-  }
-
-  private titleCase(value: string): string {
-    return value
-      .trim()
-      .split(/\s+/)
-      .map((part) => part[0]?.toUpperCase() + part.slice(1).toLowerCase())
-      .join(' ');
   }
 
   private fieldLabel(key: string): string {
@@ -804,6 +836,31 @@ export class AiService implements OnModuleInit {
     if (typeof value !== 'string' || !value.trim()) return undefined;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? undefined : date;
+  }
+
+  private numericValue(value: unknown): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value.replace('%', '').trim());
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  }
+
+  private formatProbability(value: number): string {
+    return `${Number.isInteger(value) ? value : Number(value.toFixed(2))}%`;
+  }
+
+  private describeProviderError(error: unknown): string {
+    const raw = error instanceof Error ? error.message : String(error || 'Unknown AI error');
+    try {
+      const parsed = JSON.parse(raw) as { error?: { message?: string; status?: string } };
+      const message = parsed.error?.message || 'AI provider request failed.';
+      const status = parsed.error?.status;
+      return status ? `AI provider returned ${status}: ${message}` : `AI provider returned an error: ${message}`;
+    } catch {
+      return raw || 'Unknown AI error';
+    }
   }
 
   private isMissingApiKey(apiKey: string | undefined): boolean {

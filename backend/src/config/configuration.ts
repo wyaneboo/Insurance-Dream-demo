@@ -19,6 +19,6 @@ export default () => ({
   },
   ai: {
     apiKey: firstConfigured(process.env.AI_API_KEY, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY),
-    model: process.env.AI_MODEL || process.env.GEMINI_MODEL || 'gemma-4-31b-it',
+    model: process.env.AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   },
 });
