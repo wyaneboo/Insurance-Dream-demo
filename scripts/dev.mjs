@@ -1,7 +1,12 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 import process from "node:process";
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const venvPython =
+  process.platform === "win32"
+    ? path.resolve(".venv/Scripts/python.exe")
+    : path.resolve(".venv/bin/python");
 
 const processes = [
   {
@@ -9,6 +14,12 @@ const processes = [
     command: npmCommand,
     args: ["run", "dev"],
     cwd: "backend",
+  },
+  {
+    name: "ai",
+    command: venvPython,
+    args: ["-m", "uvicorn", "app.main:app", "--port", "8000", "--reload"],
+    cwd: "ai-service",
   },
   {
     name: "web",
