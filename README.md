@@ -1,68 +1,46 @@
 # Dream Agency Platform
 
-Dream Agency is an insurance agent workspace for tracking prospects, managing policy submissions, and keeping daily agency work organized from one dashboard.
+Dream Agency Platform is a full-stack insurance workspace demo for agents and customers. It combines a React portal UI with a NestJS API so agents can manage prospects, policy submissions, tasks, appointments, service work, claims, vault documents, rewards, and AI-assisted workflows from one application.
 
-The platform is built for insurance agents who need a practical CRM-style tool: capture leads, track prospect probability, manage underwriting submissions, follow up on tasks, view appointments, and use an AI assistant to operate the platform faster.
+The repository is organized as a frontend at the project root and a backend in `backend/`.
 
-## Core Features
+## What This Repo Contains
 
-- Prospect database with CRUD support for lead names, stage, contact details, probability score, notes, and next actions.
-- Submission pipeline database with CRUD support for applicant name, plan, underwriting status, pending reasons, required documents, remarks, submission date, and expiry.
-- Agent dashboard for pipeline progress, production metrics, tasks, appointments, notifications, rewards, vault documents, claims, and service requests.
-- JWT authentication with agent, customer, and admin roles.
-- Prisma/PostgreSQL data model for users, policies, prospects, submissions, claims, tasks, appointments, content, rewards, vault documents, and audit logs.
-- Dream AI Assistant for advice, workflow help, control-panel actions, and organizing the prospect/submission databases through backend CRUD tools.
-
-## Dream AI Assistant
-
-Dream AI Assistant is intended to be a "do-anything" assistant inside the insurance platform. It can answer agent questions, give operational advice, and execute authorized platform actions through backend tools.
-
-For database work, the assistant uses a LangGraph agent flow:
-
-1. `plan` - understand the user request and choose one resource: prospects or submission pipeline.
-2. `tool` - execute the matching CRUD tool.
-3. `evaluate` - check whether the tool result satisfies the user request.
-4. `repair` - retry once with safer/default fields if the first result is incomplete.
-5. `finalize` - return a clear response to the user.
-
-The assistant is optimized to reduce latency:
-
-- Uses a deterministic local parser for common CRUD requests before calling the model.
-- Queries only the database the user asked for.
-- Uses Prisma field projection so reads only fetch requested fields.
-- Formats final CRUD responses locally instead of making another model call.
-- Uses one repair retry and a model timeout.
-
-The default model is `gemma-4-31b-it`, configured through the backend AI environment variables.
+- Agent portal with dashboard metrics, prospect tracking, submission pipeline views, training, circulars, tools, support, and linked carrier portals.
+- Customer portal with policy overview, service requests, planning, rewards, and secure document vault screens.
+- Dream AI Assistant overlay for operational questions and authorized platform actions.
+- NestJS backend with JWT authentication, role guards, Prisma, PostgreSQL, Redis configuration, S3-compatible file storage configuration, and domain modules for the insurance workflow.
+- Prisma schema and migrations for users, policies, prospects, submission pipeline records, claims, tasks, appointments, content, notifications, rewards, vault documents, and audit logs.
 
 ## Tech Stack
 
-- Frontend: React, Vite, TypeScript, Tailwind CSS, Recharts, Lucide icons.
+- Frontend: React 19, Vite, TypeScript, Tailwind CSS, Recharts, Lucide React.
 - Backend: NestJS, Prisma, PostgreSQL, JWT auth, LangGraph, Google GenAI SDK.
-- Infrastructure dependencies: Redis and S3-compatible object storage such as MinIO.
+- Supporting services: Redis and S3-compatible object storage such as MinIO.
 
-## Repository Structure
+## Repository Layout
 
 ```text
 .
-+-- src/                    # React frontend
++-- src/                    # React frontend application
 +-- backend/
-|   +-- src/                # NestJS backend modules
+|   +-- src/                # NestJS API modules
 |   +-- prisma/             # Prisma schema and migrations
 |   +-- .env.example        # Backend environment template
-+-- package.json            # Frontend scripts
++-- scripts/dev.mjs         # Starts frontend and backend together
++-- package.json            # Frontend and root dev scripts
 +-- README.md
 ```
 
-Important backend modules:
+Key backend modules include:
 
-- `auth` - login and refresh tokens.
-- `prospects` - prospect CRUD and notes.
-- `pipeline` - submission pipeline CRUD.
-- `ai` - Dream AI Assistant and LangGraph CRUD agent.
-- `policies`, `claims`, `tasks`, `appointments`, `notifications`, `vault`, `rewards`, `content` - supporting insurance platform areas.
+- `auth` - login, refresh tokens, and role-aware access.
+- `prospects` - prospect database CRUD.
+- `pipeline` - insurance submission pipeline CRUD.
+- `ai` - Dream AI Assistant and LangGraph-powered tool flow.
+- `policies`, `claims`, `tasks`, `appointments`, `notifications`, `vault`, `rewards`, `content`, `services` - supporting platform areas.
 
-## Local Development
+## Local Setup
 
 ### Prerequisites
 
@@ -70,11 +48,11 @@ Important backend modules:
 - PostgreSQL
 - Redis
 - S3-compatible storage, for example MinIO
-- Google AI API key for the assistant
+- Google AI API key if you want to use the assistant
 
-### 1. Install Dependencies
+### Install Dependencies
 
-Install frontend dependencies:
+Install frontend/root dependencies:
 
 ```bash
 npm install
@@ -87,9 +65,9 @@ cd backend
 npm install
 ```
 
-### 2. Configure Frontend Environment
+### Configure Environment
 
-Create a root `.env` file:
+Create a root `.env` file for the frontend:
 
 ```env
 VITE_API_URL=http://localhost:4000
@@ -100,11 +78,9 @@ VITE_DEV_CUSTOMER_LOGIN_IDENTIFIER=customer@example.com
 VITE_DEV_CUSTOMER_LOGIN_PASSWORD=your-dev-password
 ```
 
-The `VITE_DEV_*` values are optional. They only auto-fill the login form during local development.
+The `VITE_DEV_*` values are optional local-development helpers that prefill the login form.
 
-### 3. Configure Backend Environment
-
-Copy the backend environment template:
+Create the backend environment file:
 
 ```bash
 cd backend
@@ -118,7 +94,7 @@ cd backend
 Copy-Item .env.example .env
 ```
 
-Update `backend/.env`:
+Update `backend/.env` with your local service values:
 
 ```env
 PORT=4000
@@ -134,11 +110,13 @@ S3_BUCKET="dream-agency"
 S3_ACCESS_KEY="minio"
 S3_SECRET_KEY="minio123"
 
-AI_API_KEY="your_google_ai_api_key"
-AI_MODEL="gemma-4-31b-it"
+AI_API_KEY="your_google_gemini_api_key"
+AI_MODEL="gemini-2.5-flash"
 ```
 
-### 4. Prepare the Database
+If you change the backend `PORT`, update `VITE_API_URL` to match it.
+
+### Prepare the Database
 
 ```bash
 cd backend
@@ -146,38 +124,52 @@ npm run prisma:generate
 npm run prisma:migrate
 ```
 
-Use Prisma Studio if you want to inspect or edit local data:
+To inspect or edit local data:
 
 ```bash
 npm run prisma:studio
 ```
 
-### 5. Run the App
+### Run the App
 
-Start the backend:
+From the repository root, start the frontend and backend together:
 
 ```bash
-cd backend
 npm run dev
 ```
 
-Start the frontend in another terminal:
+Or run them separately:
 
 ```bash
-npm run dev
+npm run dev:frontend
+npm run dev:backend
 ```
 
 Default local URLs:
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:4000` if `PORT=4000` is set
+- Backend API: `http://localhost:4000` with the recommended `PORT=4000` setting
+
+The backend falls back to port `3000` if `PORT` is omitted, but the full-stack dev setup should use a separate API port so it does not collide with Vite.
+
+```env
+# backend/.env
+PORT=4000
+```
+
+```env
+# .env
+VITE_API_URL=http://localhost:4000
+```
 
 ## Useful Scripts
 
-Frontend:
+Root/frontend:
 
 ```bash
 npm run dev
+npm run dev:frontend
+npm run dev:backend
 npm run build
 npm run preview
 ```
@@ -208,17 +200,12 @@ npm run prisma:studio
 - `DELETE /pipeline/:id`
 - `POST /ai/assistant`
 
-The frontend API client is in `src/api/client.ts`.
-
-## Environment and Secrets
-
-Environment files are ignored by Git. Keep real API keys, database credentials, and JWT secrets out of commits.
-
-Use `backend/.env.example` as the backend template and keep local frontend variables in the root `.env`.
+The frontend API client lives in `src/api/client.ts`.
 
 ## Development Notes
 
-- Update `backend/prisma/schema.prisma` first when changing database structure.
-- Run Prisma generate and migrations after schema changes.
-- Keep AI tool access role-aware. CRUD actions should stay behind authenticated agent/admin access.
-- The AI assistant should prefer scoped tool calls over broad database retrieval so responses stay fast.
+- Keep real secrets, JWT values, API keys, database credentials, and storage credentials out of Git.
+- Use `backend/.env.example` as the backend environment template.
+- Update `backend/prisma/schema.prisma` before changing database-backed behavior.
+- Run Prisma generation and migrations after schema changes.
+- Keep assistant actions scoped and role-aware so AI tool calls only reach authorized resources.
