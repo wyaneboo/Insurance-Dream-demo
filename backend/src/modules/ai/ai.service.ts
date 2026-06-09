@@ -8,7 +8,7 @@ const DEFAULT_AI_SERVICE_URL = 'http://localhost:8000';
 const AI_SERVICE_TIMEOUT_MS = 60000;
 
 /**
- * The LangGraph agent now lives in the Python `ai-service`. This service does
+ * The Personal Assistant Agent now lives in the Python `ai-service`. This service does
  * two things:
  *   1. `chat()` forwards the user message to that service.
  *   2. `executeTool()` dispatches CRM CRUD to the per-resource tool providers,
@@ -26,7 +26,7 @@ export class AiService implements OnModuleInit {
 
   onModuleInit() {
     const serviceUrl = this.config.get<string>('ai.serviceUrl') || DEFAULT_AI_SERVICE_URL;
-    this.logger.log(`Dream AI Assistant delegates to the LangGraph service at ${serviceUrl}.`);
+    this.logger.log(`Personal Assistant Agent delegates to the LangGraph service at ${serviceUrl}.`);
   }
 
   async chat(role: string, userId: string, message: string) {
@@ -48,8 +48,8 @@ export class AiService implements OnModuleInit {
       return { reply: data.reply || 'I could not generate a response.' };
     } catch (error) {
       const description = this.describeError(error);
-      this.logger.error(`Dream AI agent failed: ${description}`);
-      return { reply: `Dream AI could not complete the request right now. ${description}` };
+      this.logger.error(`Personal Assistant Agent failed: ${description}`);
+      return { reply: `Personal Assistant Agent could not complete the request right now. ${description}` };
     }
   }
 

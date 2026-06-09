@@ -12,14 +12,13 @@ import {
   AGENT_KPI,
   PORTAL_LINKS,
   MOCK_TRAINING,
-  MOCK_CIRCULARS,
   MOCK_TASKS,
   MOCK_APPOINTMENTS,
   MOCK_CLAIMS,
   MOCK_NOTIFICATIONS,
 } from '../constants';
 import { api } from '../api/client';
-import { PipelineCase, Prospect } from '../types';
+import { NewsItem, PipelineCase, Prospect } from '../types';
 import {
   ChevronRight,
   Globe,
@@ -45,6 +44,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 
 const COLORS = ['#0ea5e9', '#0284c7', '#0369a1'];
@@ -112,6 +112,29 @@ const splitLines = (value: string) =>
     .split('\n')
     .map((item) => item.trim())
     .filter(Boolean);
+
+const categoryBadgeClass = (category: string) => {
+  switch (category) {
+    case 'Compliance Alert':
+      return 'bg-red-100 text-red-700 border-red-200';
+    case 'Product Update':
+      return 'bg-violet-100 text-violet-700 border-violet-200';
+    case 'Medical / Healthcare':
+      return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'Tax Planning':
+      return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'Retirement Planning':
+      return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+    case 'Economic Insight':
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+    case 'Investment / Market':
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'Recruitment / Agency Building':
+      return 'bg-pink-100 text-pink-700 border-pink-200';
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+};
 
 export const AgentDashboard: React.FC = () => {
   const chartData = [
@@ -754,36 +777,111 @@ export const AgentTraining: React.FC = () => {
 };
 
 export const AgentNews: React.FC = () => {
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const loadNews = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setNewsItems(await api.news());
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load news');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNews();
+  }, []);
+
+  const handleCheckLatest = async () => {
+    setChecking(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const result = await api.checkLatestNews();
+      setNewsItems(result.items);
+      setStatus(`Checked ${result.fetched} recommended update(s). Saved ${result.saved}; skipped ${result.duplicates} duplicate(s).`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to check latest updates');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const sortedNews = [...newsItems].sort((left, right) => {
+    if (left.recommended !== right.recommended) return left.recommended ? -1 : 1;
+    if (left.relevanceScore !== right.relevanceScore) return right.relevanceScore - left.relevanceScore;
+    return new Date(right.publishedDate).getTime() - new Date(left.publishedDate).getTime();
+  });
+
   return (
     <div className="space-y-6">
-       <h2 className="text-xl font-bold text-slate-800">Company News & E-Circulars</h2>
-       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm divide-y divide-slate-50">
-         {MOCK_CIRCULARS.map((news) => (
-           <div key={news.id} className="p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer group">
-             <div className="mt-1 p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-               <FileText size={20} />
-             </div>
-             <div className="flex-1">
-               <div className="flex items-center gap-2 mb-1">
-                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                   news.category === 'Product' ? 'bg-purple-100 text-purple-700' :
-                   news.category === 'Compliance' ? 'bg-red-100 text-red-700' :
-                   'bg-blue-100 text-blue-700'
-                 }`}>
-                   {news.category}
-                 </span>
-                 {!news.isRead && <span className="w-2 h-2 rounded-full bg-red-500"></span>}
-                 <span className="text-xs text-slate-400 ml-auto">{news.date}</span>
-               </div>
-               <h3 className="font-semibold text-slate-800">{news.title}</h3>
-               <p className="text-sm text-slate-500 mt-1 line-clamp-1">
-                 Click to read the full details regarding this announcement. AI Summary available.
-               </p>
-             </div>
-             <ChevronRight size={16} className="text-slate-300 self-center" />
-           </div>
-         ))}
-       </div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">News Monitor</h2>
+          <p className="text-sm text-slate-500">Official Malaysian insurance, healthcare, tax, retirement, economic, and market updates.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={loadNews} className="text-slate-500 hover:bg-slate-100 p-2 rounded-lg" title="Refresh saved news">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={handleCheckLatest}
+            disabled={checking}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md shadow-blue-200 transition-all flex items-center gap-2 disabled:opacity-60"
+          >
+            <RefreshCw size={16} className={checking ? 'animate-spin' : ''} />
+            {checking ? 'Checking...' : 'Check Latest Updates'}
+          </button>
+        </div>
+      </div>
+
+      {status && <div className="bg-blue-50 border border-blue-100 text-blue-700 rounded-xl px-4 py-3 text-sm">{status}</div>}
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">{error}</div>}
+
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm divide-y divide-slate-100 overflow-hidden">
+        {loading && <div className="p-6 text-sm text-slate-500">Loading news updates...</div>}
+        {!loading && sortedNews.length === 0 && (
+          <div className="p-6 text-sm text-slate-500">No recommended news has been saved yet.</div>
+        )}
+        {!loading && sortedNews.map((news) => (
+          <div key={news.id} className="p-5 flex flex-col gap-4 hover:bg-slate-50 transition-colors md:flex-row md:items-start">
+            <div className="mt-1 p-2 bg-slate-100 rounded-lg text-slate-500 shrink-0">
+              <FileText size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                {news.recommended && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-green-100 text-green-700 border border-green-200">Recommended</span>}
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-white text-slate-600 border border-slate-200">{news.source}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${categoryBadgeClass(news.category)}`}>{news.category}</span>
+                <span className="text-xs text-slate-400 ml-auto">{displayDate(news.publishedDate)}</span>
+              </div>
+              <h3 className="font-semibold text-slate-800 leading-snug">{news.title}</h3>
+              <p className="text-sm text-slate-500 mt-2">{news.summary}</p>
+              <p className="text-xs text-slate-500 mt-3 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                <span className="font-semibold text-slate-700">Why this matters:</span> {news.reasonRecommended}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-slate-400">Relevance {news.relevanceScore}/100</span>
+                <a
+                  href={news.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  Original source <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

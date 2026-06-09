@@ -94,6 +94,48 @@ export interface Circular {
   isRead: boolean;
 }
 
+export type NewsCategory =
+  | 'Compliance Alert'
+  | 'Product Update'
+  | 'Medical / Healthcare'
+  | 'Tax Planning'
+  | 'Retirement Planning'
+  | 'Economic Insight'
+  | 'Investment / Market'
+  | 'Recruitment / Agency Building';
+
+export interface NewsItem {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  publishedDate: string;
+  summary: string;
+  category: NewsCategory;
+  relevanceScore: number;
+  reasonRecommended: string;
+  recommended: boolean;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NewsSourceCheck {
+  source: string;
+  checkedUrl: string;
+  fetched: number;
+  error?: string;
+}
+
+export interface NewsCheckResult {
+  checkedAt: string;
+  fetched: number;
+  saved: number;
+  duplicates: number;
+  sources: NewsSourceCheck[];
+  items: NewsItem[];
+}
+
 export interface ServiceRequest {
   id: string;
   type: string;

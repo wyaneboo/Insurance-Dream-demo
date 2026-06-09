@@ -15,8 +15,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ userRole }) => {
     {
       role: 'model',
       text: userRole === UserRole.AGENT 
-        ? "Hello Agent. I can help with circular summaries, proposal drafting, or underwriting checks. What do you need?" 
-        : "Hi there! I'm your Dream Assistant. Ask me anything about your policies or how to file a claim.",
+        ? "Hello Agent. I can help with prospect follow-ups, proposal drafting, or underwriting checks. What do you need?" 
+        : "Hi there! I'm your Personal Assistant Agent. Ask me anything about your policies or how to file a claim.",
       timestamp: new Date()
     }
   ]);
@@ -67,7 +67,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ userRole }) => {
         <div className={`p-4 rounded-t-2xl flex justify-between items-center ${userRole === UserRole.AGENT ? 'bg-gradient-to-r from-slate-800 to-slate-900' : 'bg-gradient-to-r from-teal-500 to-emerald-500'} text-white`}>
           <div className="flex items-center gap-2">
             <Sparkles size={20} />
-            <h3 className="font-semibold">Dream AI Assistant</h3>
+            <h3 className="font-semibold">Personal Assistant Agent</h3>
           </div>
           <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-1 rounded-full">
             <X size={20} />

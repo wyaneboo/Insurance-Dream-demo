@@ -13,8 +13,8 @@ from typing import Any, TypedDict
 
 import httpx
 
-from .config import settings
-from .state import AgentAction
+from ..memory.state import AgentAction
+from ..security_and_governance.config import settings
 
 logger = logging.getLogger("dream-ai.tools")
 

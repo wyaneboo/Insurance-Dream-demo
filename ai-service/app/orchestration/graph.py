@@ -13,9 +13,12 @@ import logging
 
 from langgraph.graph import END, START, StateGraph
 
-from . import formatting, llm, tools
-from .config import settings
-from .state import AgentState, Evaluation, has_tool_action
+from ..agent import formatting, llm
+from ..memory.state import AgentState, Evaluation, has_tool_action
+from ..prompt import prompts
+from ..security_and_governance.config import settings
+from ..security_and_governance.policy import can_use_crm_tools
+from ..tools_and_skills import crm_tools
 
 logger = logging.getLogger("dream-ai.graph")
 
@@ -23,11 +26,11 @@ logger = logging.getLogger("dream-ai.graph")
 async def plan(state: AgentState) -> dict:
     if settings.missing_api_key:
         return {
-            "reply": "Dream AI is not configured yet. Add a backend AI key before using the assistant.",
+            "reply": "Personal Assistant Agent is not configured yet. Add a backend AI key before using the assistant.",
             "attempts": 0,
         }
 
-    text = await llm.generate_text(llm.build_plan_prompt(state.get("role", ""), state.get("message", "")))
+    text = await llm.generate_text(prompts.build_plan_prompt(state.get("role", ""), state.get("message", "")))
 
     action = llm.parse_action(text)
     if action:
@@ -47,10 +50,10 @@ async def run_tool(state: AgentState) -> dict:
     if not has_tool_action(action):
         return {"toolResult": state.get("toolResult") or {"error": "I could not identify a CRM CRUD request."}}
 
-    if state.get("role") not in ("AGENT", "ADMIN"):
+    if not can_use_crm_tools(state.get("role")):
         return {"toolResult": {"error": "CRM CRUD tools are only available to agents/admins."}}
 
-    response = await tools.run_tool(state["role"], state["userId"], action)  # type: ignore[arg-type]
+    response = await crm_tools.run_tool(state["role"], state["userId"], action)  # type: ignore[arg-type]
     updates: dict = {"toolResult": response["result"]}
     # Echo back the normalized field set the backend actually used so `evaluate`
     # can check coverage without knowing the Prisma column vocabulary.

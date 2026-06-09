@@ -1,4 +1,4 @@
-"""Dream AI Assistant — LangGraph agent service.
+"""Personal Assistant Agent - LangGraph agent service.
 
 This package holds the agent "brain" (planning, evaluation, repair, finalize)
 and the Gemini calls. All database work and auth scoping stay in the Node

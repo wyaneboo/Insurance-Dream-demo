@@ -18,7 +18,7 @@ const processes = [
   {
     name: "ai",
     command: venvPython,
-    args: ["-m", "uvicorn", "app.main:app", "--port", "8000", "--reload"],
+    args: ["-m", "uvicorn", "app.orchestration.main:app", "--port", "8000", "--reload"],
     cwd: "ai-service",
   },
   {

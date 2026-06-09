@@ -1,5 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ContentService } from './content.service';
+import { Roles } from '../shared/roles.decorator';
+import { RolesGuard } from '../shared/roles.guard';
 
 @Controller()
 export class ContentController {
@@ -13,5 +16,12 @@ export class ContentController {
   @Get('news')
   news() {
     return this.contentService.listNews();
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('AGENT', 'ADMIN')
+  @Post('news/check-updates')
+  checkNewsUpdates() {
+    return this.contentService.checkLatestNews();
   }
 }

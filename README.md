@@ -8,7 +8,8 @@ The repository is organized as a frontend at the project root and a backend in `
 
 - Agent portal with dashboard metrics, prospect tracking, submission pipeline views, training, circulars, tools, support, and linked carrier portals.
 - Customer portal with policy overview, service requests, planning, rewards, and secure document vault screens.
-- Dream AI Assistant overlay for operational questions and authorized platform actions.
+- Personal Assistant Agent overlay for operational questions and authorized platform actions.
+- News Monitor agent for official-source Malaysian insurance, healthcare, tax, retirement, economic, and market updates.
 - NestJS backend with JWT authentication, role guards, Prisma, PostgreSQL, Redis configuration, S3-compatible file storage configuration, and domain modules for the insurance workflow.
 - Prisma schema and migrations for users, policies, prospects, submission pipeline records, claims, tasks, appointments, content, notifications, rewards, vault documents, and audit logs.
 
@@ -37,7 +38,8 @@ Key backend modules include:
 - `auth` - login, refresh tokens, and role-aware access.
 - `prospects` - prospect database CRUD.
 - `pipeline` - insurance submission pipeline CRUD.
-- `ai` - Dream AI Assistant and LangGraph-powered tool flow.
+- `ai` - Personal Assistant Agent and LangGraph-powered tool flow.
+- `content` - trainings, saved news items, and the News Monitor check endpoint.
 - `policies`, `claims`, `tasks`, `appointments`, `notifications`, `vault`, `rewards`, `content`, `services` - supporting platform areas.
 
 ## Local Setup
@@ -199,6 +201,8 @@ npm run prisma:studio
 - `PATCH /pipeline/:id`
 - `DELETE /pipeline/:id`
 - `POST /ai/assistant`
+- `GET /news`
+- `POST /news/check-updates`
 
 The frontend API client lives in `src/api/client.ts`.
 
@@ -208,4 +212,4 @@ The frontend API client lives in `src/api/client.ts`.
 - Use `backend/.env.example` as the backend environment template.
 - Update `backend/prisma/schema.prisma` before changing database-backed behavior.
 - Run Prisma generation and migrations after schema changes.
-- Keep assistant actions scoped and role-aware so AI tool calls only reach authorized resources.
+- Keep personal assistant actions scoped and role-aware so AI tool calls only reach authorized resources.

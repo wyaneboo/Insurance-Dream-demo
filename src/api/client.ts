@@ -1,3 +1,5 @@
+import type { NewsCheckResult, NewsItem } from "../types";
+
 const API_BASE = import.meta.env.VITE_API_URL;
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
@@ -78,7 +80,8 @@ export const api = {
   redeemReward: (id: string) => apiFetch(`/rewards/${id}/redeem`, { method: "POST" }),
   vault: () => apiFetch("/vault"),
   vaultPresignUpload: (payload: Record<string, unknown>) => apiFetch("/vault/presign-upload", { method: "POST", body: payload }),
-  news: () => apiFetch("/news"),
+  news: () => apiFetch<NewsItem[]>("/news"),
+  checkLatestNews: () => apiFetch<NewsCheckResult>("/news/check-updates", { method: "POST" }),
   trainings: () => apiFetch("/trainings"),
   appointments: () => apiFetch("/appointments"),
   aiAssistant: (message: string) => apiFetch<{ reply: string }>("/ai/assistant", { method: "POST", body: { message } }),

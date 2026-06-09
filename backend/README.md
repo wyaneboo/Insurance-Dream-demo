@@ -1,7 +1,7 @@
 # Dream Agency Backend (NestJS + Prisma)
 
 ## What’s included
-- NestJS app with JWT auth, role guard, Prisma ORM, and stubs for AI, files (presigned), policies, tasks.
+- NestJS app with JWT auth, role guard, Prisma ORM, and stubs for AI, files (presigned), policies, tasks, and official-source news monitoring.
 - Prisma schema covering users, policies, documents, pipeline, claims, reminders, vault, rewards, trainings, news, audit logs.
 - Env validation and example env file.
 
@@ -30,7 +30,8 @@ npm run dev
 - Submission pipeline: `/pipeline`, `/pipeline/:id`
 - Tasks: `/tasks`, `/tasks/:id/complete`
 - Files: `/files/presign-upload`, `/files/presign-download` (fake URLs; swap with S3)
-- AI: `/ai/assistant` (LangGraph agent; set `AI_API_KEY` and optional `AI_MODEL`, default `gemini-2.5-flash`)
+- AI: `/ai/assistant` (Personal Assistant Agent; set `AI_API_KEY` and optional `AI_MODEL`, default `gemini-2.5-flash`)
+- Content: `/news`, `/news/check-updates`, `/trainings`
 
 ## Next steps
 - Hook real S3/MinIO presign logic; add virus scan webhook.

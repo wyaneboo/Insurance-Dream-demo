@@ -18,6 +18,8 @@ export const validateEnv = (config: Record<string, unknown>) => {
     GEMINI_API_KEY: Joi.string().allow('').default(''),
     AI_MODEL: Joi.string().default('gemini-2.5-flash'),
     GEMINI_MODEL: Joi.string().allow('').default(''),
+    NEWS_MONITOR_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+    NEWS_MONITOR_INTERVAL_HOURS: Joi.number().positive().default(24),
   });
 
   const { error, value } = schema.validate(config, { allowUnknown: true });

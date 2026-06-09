@@ -226,6 +226,27 @@ model NewsCircular {
   createdAt   DateTime @default(now())
 }
 
+model NewsItem {
+  id                String   @id @default(cuid())
+  title             String
+  source            String
+  url               String   @unique
+  publishedDate     DateTime
+  summary           String
+  category          String
+  relevanceScore    Int
+  reasonRecommended String
+  recommended       Boolean  @default(true)
+  titleFingerprint  String
+  lastSeenAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([recommended, relevanceScore, publishedDate])
+  @@index([titleFingerprint])
+  @@map("news_items")
+}
+
 model Reward {
   id             String   @id @default(cuid())
   title          String
