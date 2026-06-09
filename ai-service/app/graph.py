@@ -27,7 +27,7 @@ async def plan(state: AgentState) -> dict:
             "attempts": 0,
         }
 
-    text = await llm.generate_text(llm.build_plan_prompt(state["role"], state["message"]))
+    text = await llm.generate_text(llm.build_plan_prompt(state.get("role", ""), state.get("message", "")))
 
     action = llm.parse_action(text)
     if action:
@@ -47,7 +47,7 @@ async def run_tool(state: AgentState) -> dict:
     if not has_tool_action(action):
         return {"toolResult": state.get("toolResult") or {"error": "I could not identify a CRM CRUD request."}}
 
-    if state["role"] not in ("AGENT", "ADMIN"):
+    if state.get("role") not in ("AGENT", "ADMIN"):
         return {"toolResult": {"error": "CRM CRUD tools are only available to agents/admins."}}
 
     response = await tools.run_tool(state["role"], state["userId"], action)  # type: ignore[arg-type]
@@ -55,6 +55,7 @@ async def run_tool(state: AgentState) -> dict:
     # Echo back the normalized field set the backend actually used so `evaluate`
     # can check coverage without knowing the Prisma column vocabulary.
     if response["fields"]:
+        assert action is not None  # has_tool_action verified above
         updates["action"] = {**action, "fields": response["fields"]}
     return updates
 
@@ -92,6 +93,7 @@ def repair(state: AgentState) -> dict:
     if not has_tool_action(action):
         return {"attempts": attempts}
     # Ask the backend to re-run with its default field set on the next tool call.
+    assert action is not None  # has_tool_action verified above
     return {"attempts": attempts, "action": {**action, "useDefaultFields": True}}
 
 

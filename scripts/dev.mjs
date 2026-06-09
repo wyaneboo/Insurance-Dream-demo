@@ -43,7 +43,7 @@ for (const proc of processes) {
   const child = spawn(proc.command, proc.args, {
     cwd: proc.cwd,
     env: { ...process.env, FORCE_COLOR: "1" },
-    shell: false,
+    shell: process.platform === "win32",
     stdio: "inherit",
   });
 
